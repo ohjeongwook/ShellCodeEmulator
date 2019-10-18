@@ -9,7 +9,6 @@ import sqlite3
 from unicorn import *
 from unicorn.x86_const import *
 from capstone import *
-from pykd import *
 import pykd
 
 import windbgtool.debugger
@@ -19,7 +18,26 @@ import idatool.list
 upck32 = lambda x: struct.unpack('I', x)[0]
 pck32 = lambda x: struct.pack('I', x)
 
-class PE:
+class PEStructure:
+    def __init__(self, tib_bytes = None, stack_base = 0, stack_limit = 0, fs = 0, teb_addr = 0, peb_addr = 0):
+        self.StackBase = stack_base
+        self.StackLimit = stack_limit
+        self.FS = fs
+        self.TebAddr = teb_addr
+        self.PebAddr = peb_addr
+
+        if tib_bytes:
+            self._ReadTIB(tib_bytes)
+            self.logger.debug("FS: %.8x - %.8x" % (fs_entries['StackLimit'], fs_entries['StackBase']))
+        
+    def _ReadTIB(self, tib_bytes):
+        unpacked_entries = struct.unpack('I'*13, tib_bytes[0:4*13])
+        
+        self.StackBase = unpacked_entries[1]
+        self.StackLimit = unpacked_entries[2]
+        self.TebAddr = teb_unpacked_entries[11]
+        self.PebAddr = unpacked_entries[12]
+
     def init_ldr(seft, FLoad, Bload, FMem, BMem, FInit, BInit, DllBase, EntryPoint, DllName, addrofnamedll):
         # InOrder
         ldr = ''
@@ -82,18 +100,6 @@ class PE:
         fs_data += pck32(self.PebAddr)
         fs_data += pck32(0x0)
         return fs_data
-        
-    def DumpFS(self, data):
-        unpacked_entries = struct.unpack('I'*13, data[0:4*13])
-        
-        entry = {
-            'StackBase': unpacked_entries[1], 
-            'StackLimit': unpacked_entries[2], 
-            'TEB': unpacked_entries[11], 
-            'PEB': unpacked_entries[12]            
-        }
-        
-        return entry
 
 class ShellEmu:
     Debug = 1
@@ -105,7 +111,6 @@ class ShellEmu:
 
         self.logger = logging.getLogger(__name__)
 
-        self.DmpFilename = ''
         self.ExhaustiveLoopDumpFrequency = 0x10000
         self.HitMap = {}            
         self.LastCodeAddress = 0
@@ -178,7 +183,7 @@ class ShellEmu:
             if isinstance(ch, basestring):
                 ch = ord(ch)
             line += '%.2x ' % ch
-            if count%0x1 0= =0xf:
+            if count % 0x10 == 0xf:
                 line += '\n'
             count += 1
             
@@ -380,10 +385,10 @@ class ShellEmu:
                 self.uc.reg_write(UC_X86_REG_ESP, address['BaseAddr']+address['RgnSize']-0x100)
                 self.uc.reg_write(UC_X86_REG_EBP, address['BaseAddr']+address['RgnSize']-0x100)
         
-            if self.DmpFilename:
+            if self.DumpFilename:
                 tmp_dmp_filename = 'tmp.dmp'
                 try:
-                    dbgCommand(".writemem %s %x L?%x" % (tmp_dmp_filename, address['BaseAddr'], address['RgnSize']))
+                    pykd.dbgCommand(".writemem %s %x L?%x" % (tmp_dmp_filename, address['BaseAddr'], address['RgnSize']))
                 except:
                     self.logger.debug("* Writemem failed")
                     traceback.print_exc(file = sys.stdout)
@@ -661,33 +666,28 @@ class ShellEmu:
         self.uc.reg_write(UC_X86_REG_EBP, self.StackBase-0x100)
 
     def SetupTIB(self):
-        if self.DmpFilename:
-            tmp_dmp_filename = 'tib.dmp'
-            dbgCommand(".writemem %s fs:0 L?0x1000" % tmp_dmp_filename)
+        if self.DumpFilename:
+            tib_filename = 'tib.dmp'
+            pykd.dbgCommand(".writemem %s fs:0 L?0x1000" % tib_filename)
             
-            fd = open(tmp_dmp_filename, 'rb')
-            data = fd.read()
+            fd = open(tib_filename, 'rb')
+            tib_bytes = fd.read()
             fd.close()
 
-            pe = PE()
-            fs_entries = pe.DumpFS(data)
-            self.logger.debug("FS: %.8x - %.8x" % (fs_entries['StackLimit'], fs_entries['StackBase']))
-            
-            (self.FS, size) = self.ReadMemoryFile(tmp_dmp_filename, 0)
+            pe_structure = PEStructure(tib_bytes = tib_bytes)          
+            (self.FS, size) = self.ReadMemoryFile(tib_filename, 0)
             self.logger.debug("Writing TIB to 0x%.8x" % self.FS)
         else:
             self.TebAddr = 0
             self.PebAddr = 0
-            pe = PE()
-            fs_data = pe.InitFS()
+            pe_structure = PEStructure()
+            fs_data = pe_structure.InitFS()
             self.FS = self.AllocateMemory(0, len(fs_data))
             self.WriteMem(self.FS, fs_data, debug = 0)
 
         self.uc.reg_write(UC_X86_REG_FS, self.FS)
 
     def OverwriteShellcodeOverEntryWithFile(self, filename):
-        self.logger.debug("Writing shellcode to %x", self.CodeStart)
-
         fd = open(filename, 'rb')
         shellcode = fd.read()
         fd.close()
@@ -697,11 +697,13 @@ class ShellEmu:
     def OverwriteShellcodeOverEntry(self, shellcode):
         self.CodeLen = len(shellcode)
         self.CodeStart = self.Debugger.GetEntryPoint()
+        self.logger.debug("Writing shellcode to %x", self.CodeStart)
         self.WriteMem(self.CodeStart, shellcode, debug = 0)
 
     def Run(self, trace_self_modification = False, debug = 0):
         if self.DumpFilename:
-            self.Debugger = windbgtool.debugger.Debugger(dump_file = self.DumpFilename)
+            self.Debugger = windbgtool.debugger.DbgEngine()
+            self.Debugger.LoadDump(self.DumpFilename)
             self.Debugger.SetSymbolPath()
             self.Debugger.EnumerateModules()
             self.Debugger.LoadSymbols(self.TraceModules)
