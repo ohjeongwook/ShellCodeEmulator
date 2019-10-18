@@ -1,8 +1,7 @@
 import os
 import sys
-sys.path.append(os.environ['REPACK'])
+
 import struct
-import pprint
 import traceback
 import logging
 import sqlite3
@@ -12,9 +11,10 @@ from unicorn.x86_const import *
 from capstone import *
 from pykd import *
 import pykd
-import WinDBG.PyKD
-import IDA.List
-import Util.Common
+
+import windbgtool.debugger
+import util.common
+import idatool.list
 
 upck32 = lambda x: struct.unpack('I', x)[0]
 pck32 = lambda x: struct.pack('I', x)
@@ -356,7 +356,7 @@ class ShellEmu:
         return (base,size)
 
     def LoadProcessMemory(self):
-        for address in self.PykdTool.GetAddressList():
+        for address in self.Debugger.GetAddressList():
             if address['State'] in ('MEM_FREE','MEM_RESERVE') or address['Usage']=='Free':
                 continue
 
@@ -446,10 +446,10 @@ class ShellEmu:
                 module_filename=self.ReadUnicodeString(self.uc,module_filename_addr)
                 self.logger.debug('Module Filename:', module_filename)
 
-                module_base=self.PykdTool.GetModuleBase(module_filename)
+                module_base=self.Debugger.GetModuleBase(module_filename)
                 
                 if not module_base:
-                    module_base=self.PykdTool.GetModuleBase(module_filename.split('.')[0])
+                    module_base=self.Debugger.GetModuleBase(module_filename.split('.')[0])
                     
                 if module_base:                        
                     self.logger.debug('Write Module Base: %.8x --> %.8x' % 
@@ -473,7 +473,7 @@ class ShellEmu:
                             )
                         )
             
-            module_name=self.PykdTool.GetModuleNameFromBase(module_handle)
+            module_name=self.Debugger.GetModuleNameFromBase(module_handle)
             proc_name=self.ReadString(self.uc,proc_name_ptr)
             symbol="%s!%s" % (module_name,proc_name)
             
@@ -574,7 +574,7 @@ class ShellEmu:
 
     def HookAPIExecution(self):
         for trace_module in self.TraceModules:
-            (start,end)=self.PykdTool.GetModuleRange(trace_module)
+            (start,end)=self.Debugger.GetModuleRange(trace_module)
             self.logger.debug("* HookAPIExecution %s (%x~%x)", trace_module, start, end)
             self.uc.hook_add(
                             UC_HOOK_CODE, 
@@ -695,17 +695,17 @@ class ShellEmu:
 
     def OverwriteShellcodeOverEntry(self,shellcode):
         self.CodeLen=len(shellcode)
-        self.CodeStart=self.PykdTool.GetEntryPoint()
+        self.CodeStart=self.Debugger.GetEntryPoint()
         self.WriteMem(self.CodeStart, shellcode, debug=0)
 
     def Run(self,filename,dmp_filename='',debug=0):
         self.DmpFilename=dmp_filename
         
         if self.DmpFilename:
-            self.PykdTool=WinDBG.PyKD.Tool(dump_file=self.DmpFilename)
-            self.PykdTool.SetSymbolPath()
-            self.PykdTool.EnumerateModules()
-            self.PykdTool.LoadSymbols(self.TraceModules)
+            self.Debugger=windbgtool.debugger.Debugger(dump_file=self.DmpFilename)
+            self.Debugger.SetSymbolPath()
+            self.Debugger.EnumerateModules()
+            self.Debugger.LoadSymbols(self.TraceModules)
 
         self.uc=Uc(UC_ARCH_X86, UC_MODE_32)
 
@@ -714,13 +714,13 @@ class ShellEmu:
         self.SetupTIB()
 
         if filename.lower().endswith('.txt'):
-            parser=IDA.List.Parser(filename)
+            parser=idatool.list.Parser(filename)
             parser.Parse()
             bytes=''
             for name in parser.GetNames():
                 bytes+=parser.GetBytes(name)
 
-            self.logger.debug(Util.Common.DumpHex(bytes))
+            self.logger.debug(util.common.DumpHex(bytes))
             self.OverwriteShellcodeOverEntry(bytes)
         else:
             self.OverwriteShellcodeOverEntryWithFile(filename)
