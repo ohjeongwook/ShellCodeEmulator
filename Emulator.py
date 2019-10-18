@@ -99,9 +99,10 @@ class ShellEmu:
     Debug = 1
     TraceModules = ['ntdll', 'kernel32', 'kernelbase']
     #TraceModules = ['ntdll']
-    TraceSelfModification = False
+    def __init__(self, shellcode_filename, dump_filename = ''):
+        self.ShellcodeFilename = shellcode_filename
+        self.DumpFilename = dump_filename
 
-    def __init__(self):
         self.logger = logging.getLogger(__name__)
 
         self.DmpFilename = ''
@@ -698,23 +699,20 @@ class ShellEmu:
         self.CodeStart = self.Debugger.GetEntryPoint()
         self.WriteMem(self.CodeStart, shellcode, debug = 0)
 
-    def Run(self, filename, dmp_filename = '', debug = 0):
-        self.DmpFilename = dmp_filename
-        
-        if self.DmpFilename:
-            self.Debugger = windbgtool.debugger.Debugger(dump_file = self.DmpFilename)
+    def Run(self, trace_self_modification = False, debug = 0):
+        if self.DumpFilename:
+            self.Debugger = windbgtool.debugger.Debugger(dump_file = self.DumpFilename)
             self.Debugger.SetSymbolPath()
             self.Debugger.EnumerateModules()
             self.Debugger.LoadSymbols(self.TraceModules)
 
         self.uc = Uc(UC_ARCH_X86, UC_MODE_32)
-
         self.LoadProcessMemory()
         self.SetupStack()
         self.SetupTIB()
 
-        if filename.lower().endswith('.txt'):
-            parser = idatool.list.Parser(filename)
+        if self.ShellcodeFilename.lower().endswith('.txt'):
+            parser = idatool.list.Parser(self.ShellcodeFilename)
             parser.Parse()
             bytes = ''
             for name in parser.GetNames():
@@ -723,16 +721,15 @@ class ShellEmu:
             self.logger.debug(util.common.DumpHex(bytes))
             self.OverwriteShellcodeOverEntry(bytes)
         else:
-            self.OverwriteShellcodeOverEntryWithFile(filename)
+            self.OverwriteShellcodeOverEntryWithFile(self.ShellcodeFilename)
 
         self.HookAPIExecution()
         self.HookUnmappedMemoryAccess()
-        #self.SetupResolveAPIHook()
-        #self.HookMemoryAccess(self.CodeStart, self.CodeStart+self.CodeLen)
-        #if self.TraceSelfModification:
-        #    self.HookMemoryWrite(self.CodeStart, self.CodeStart+self.CodeLen)       
-        #self.HookCodeExecution(self.CodeStart, self.CodeStart+self.CodeLen)
-
+        self.SetupResolveAPIHook()
+        self.HookMemoryAccess(self.CodeStart, self.CodeStart+self.CodeLen)
+        if trace_self_modification:
+            self.HookMemoryWrite(self.CodeStart, self.CodeStart+self.CodeLen)       
+        self.HookCodeExecution(self.CodeStart, self.CodeStart+self.CodeLen)
         self.uc.emu_start(self.CodeStart, self.CodeStart+self.CodeLen)
 
     def DumpAL(self, uc, address, size, user_data):
@@ -774,6 +771,5 @@ if __name__ == '__main__':
 
     shellcode_filename = args[1]
 
-    shell_emu = ShellEmu()
-    shell_emu.TraceSelfModification = False
-    shell_emu.Run(shellcode_filename, options.dmp_filename)
+    shell_emu = ShellEmu(shellcode_filename, options.dmp_filename)
+    shell_emu.Run(False)
