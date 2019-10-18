@@ -13,7 +13,12 @@ import pykd
 
 import windbgtool.debugger
 import util.common
-import idatool.list
+
+try:
+    import idatool.list
+except:
+    pass
+
 import gdt
 
 upck32 = lambda x: struct.unpack('I', x)[0]
@@ -402,15 +407,6 @@ class ShellEmu:
                     bytes += chr(n)
                 self.WriteMem(address['BaseAddr'], bytes, debug = debug)
                 
-            if debug>2:
-                self.uc.hook_add(
-                                UC_HOOK_MEM_READ, 
-                                self.HookMemoryRead, 
-                                address['Comment'], 
-                                address['BaseAddr'], 
-                                address['BaseAddr']+address['RgnSize']
-                            )
-
             self.LastCodeInfo = {}
 
     def APIExecutionHook(self, uc, address, size, user_data):
