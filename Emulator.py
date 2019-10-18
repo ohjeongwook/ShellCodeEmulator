@@ -14,6 +14,7 @@ import pykd
 import windbgtool.debugger
 import util.common
 import idatool.list
+import gdt
 
 upck32 = lambda x: struct.unpack('I', x)[0]
 pck32 = lambda x: struct.pack('I', x)
@@ -168,8 +169,9 @@ class ShellEmu:
                         )
                     )
 
-        self.logger.debug(' fs: %.8X  cs: %.8X  ds: %.8X  es: %.8X' % (
+        self.logger.debug(' fs: %.8X gs: %.8X cs: %.8X  ds: %.8X  es: %.8X' % (
                             self.uc.reg_read(UC_X86_REG_FS), 
+                            self.uc.reg_read(UC_X86_REG_GS), 
                             self.uc.reg_read(UC_X86_REG_CS), 
                             self.uc.reg_read(UC_X86_REG_DS), 
                             self.uc.reg_read(UC_X86_REG_ES)
@@ -247,13 +249,7 @@ class ShellEmu:
         self.LastCodeSize = size
 
     def HookCodeExecution(self, start, end, hook_func, args = None):
-        self.uc.hook_add(
-                    UC_HOOK_CODE, 
-                    hook_func, 
-                    args, 
-                    start, 
-                    end
-                )
+        self.uc.hook_add(UC_HOOK_CODE, hook_func, args, start, end)
         
     def ReadUnicodeString(self, uc, address):
         (length, maximum_length, buffer) = struct.unpack("<HHL", self.uc.mem_read(address, 8))
@@ -331,34 +327,27 @@ class ShellEmu:
         return base
 
     def ReadMemoryFile(self, filename, base, size = 0, fixed_allocation = False):
-        fd = open(filename, 'rb')
-        if size>0:
-            data = fd.read(size)
-        else:
-            data = fd.read()
-            size = len(data)
-        fd.close()
+        with open(filename, 'rb') as fd:
+            if size>0:
+                data = fd.read(size)
+            else:
+                data = fd.read()
+                size = len(data)
 
-        if self.Debug>2:
-            self.logger.debug('* ReadMemoryFile: %.8x (size: %.8x)' % (base, len(data)))
+        self.logger.debug('* ReadMemoryFile: %.8x (size: %.8x)' % (base, len(data)))
         
         try:
-            if self.Debug>2:
-                self.logger.debug(' > self.uc.mem_map(base = %.8x, size = %.8x)' % (base, size))
-
+            self.logger.debug(' > self.uc.mem_map(base = %.8x, size = %.8x)' % (base, size))
             if fixed_allocation:
                 self.uc.mem_map(base, size)
             else:            
                 base = self.AllocateMemory(base, size)
-            
-            if self.Debug>2:
-                self.logger.debug(' > WriteMem(base = %.8x, size = %.8x)' % (base, len(data)))
+            self.logger.debug(' > WriteMem(base = %.8x, size = %.8x)' % (base, len(data)))
             self.WriteMem(base, data, debug = 0)
         except:
             self.logger.debug('* Error in memory mapping: %.8x (size: %.8x)' % (base, len(data)))
             traceback.print_exc(file = sys.stdout)
             return (base, size)
-
         return (base, size)
 
     def LoadProcessMemory(self):
@@ -402,7 +391,7 @@ class ShellEmu:
                 self.uc.mem_map(address['BaseAddr'], address['RgnSize'])
 
                 try:
-                    bytes_list = loadBytes(address['BaseAddr'], address['RgnSize'])
+                    bytes_list = pykd.loadBytes(address['BaseAddr'], address['RgnSize'])
                 except:
                     self.logger.debug("* loadBytes failed")
                     traceback.print_exc(file = sys.stdout)
@@ -674,7 +663,7 @@ class ShellEmu:
             tib_bytes = fd.read()
             fd.close()
 
-            pe_structure = PEStructure(tib_bytes = tib_bytes)          
+            pe_structure = PEStructure(tib_bytes = tib_bytes)
             (self.FS, size) = self.ReadMemoryFile(tib_filename, 0)
             self.logger.debug("Writing TIB to 0x%.8x" % self.FS)
         else:
@@ -685,22 +674,19 @@ class ShellEmu:
             self.FS = self.AllocateMemory(0, len(fs_data))
             self.WriteMem(self.FS, fs_data, debug = 0)
 
-        self.uc.reg_write(UC_X86_REG_FS, self.FS)
-
-    def OverwriteShellcodeOverEntryWithFile(self, filename):
-        fd = open(filename, 'rb')
-        shellcode = fd.read()
-        fd.close()
-        
-        self.OverwriteShellcodeOverEntry(shellcode)
-
     def OverwriteShellcodeOverEntry(self, shellcode):
         self.CodeLen = len(shellcode)
         self.CodeStart = self.Debugger.GetEntryPoint()
         self.logger.debug("Writing shellcode to %x", self.CodeStart)
         self.WriteMem(self.CodeStart, shellcode, debug = 0)
 
-    def Run(self, trace_self_modification = False, debug = 0):
+    def OverwriteShellcodeOverEntryWithFile(self, filename):
+        fd = open(filename, 'rb')
+        shellcode = fd.read()
+        fd.close()        
+        self.OverwriteShellcodeOverEntry(shellcode)
+
+    def Run(self, trace_self_modification = False):
         if self.DumpFilename:
             self.Debugger = windbgtool.debugger.DbgEngine()
             self.Debugger.LoadDump(self.DumpFilename)
@@ -709,6 +695,8 @@ class ShellEmu:
             self.Debugger.LoadSymbols(self.TraceModules)
 
         self.uc = Uc(UC_ARCH_X86, UC_MODE_32)
+        gdt_layout = gdt.Layout(self.uc)
+        gdt_layout.Setup()
         self.LoadProcessMemory()
         self.SetupStack()
         self.SetupTIB()
@@ -731,7 +719,7 @@ class ShellEmu:
         self.HookMemoryAccess(self.CodeStart, self.CodeStart+self.CodeLen)
         if trace_self_modification:
             self.HookMemoryWrite(self.CodeStart, self.CodeStart+self.CodeLen)       
-        self.HookCodeExecution(self.CodeStart, self.CodeStart+self.CodeLen)
+        #self.HookCodeExecution(self.CodeStart, self.CodeStart+self.CodeLen)
         self.uc.emu_start(self.CodeStart, self.CodeStart+self.CodeLen)
 
     def DumpAL(self, uc, address, size, user_data):
