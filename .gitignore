@@ -1,0 +1,4 @@
+*.dmp
+*.pyc
+*.db
+*.idb
