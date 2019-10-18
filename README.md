@@ -4,7 +4,7 @@
 
 ```
 set PATH=c:\python27-x64;c:\python27-x64\Scripts;%LOCALAPPDATA%\Programs\Python\Python37;%LOCALAPPDATA%\Programs\Python\Python37\Scripts;%PATH%
-``
+```
 
 ```
 pip install unicorn
