@@ -754,8 +754,6 @@ class ShellEmu:
 
 if __name__=='__main__':
     import logging
-    import sys
-    import os
     from optparse import OptionParser, Option
 
     logging.basicConfig(level=logging.DEBUG)
