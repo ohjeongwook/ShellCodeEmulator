@@ -1,0 +1,91 @@
+import sys
+import struct
+import traceback
+import logging
+
+from unicorn import *
+from unicorn.x86_const import *
+
+logger = logging.getLogger(__name__)
+
+class Tool:
+    def __init__(self, uc):
+        self.uc = uc
+
+    def ReadString(self, address): 
+        null_found = False
+        ret = ''
+        offset = 0
+        chunk_len = 0x100
+        while 1:
+            for ch in self.uc.mem_read(address+offset, chunk_len):
+                if ch == 0x00:
+                    null_found = True
+                    break
+                ret += chr(ch)
+
+            if null_found:
+                break
+                
+            offset += chunk_len
+            
+        return ret
+
+    def GetStack(self, arg_count):
+        esp = self.uc.reg_read(UC_X86_REG_ESP)
+        ret = struct.unpack("<"+"L"*(arg_count+1), self.uc.mem_read(esp, 4*(1+arg_count)))    
+        return ret
+
+    def ReadUnicodeString(self, address):
+        (length, maximum_length, buffer) = struct.unpack("<HHL", self.uc.mem_read(address, 8))
+        pwstr = self.uc.mem_read(buffer, length)
+        
+        ret = ''
+        for i in range(0, len(pwstr), 2):
+            ret += chr(pwstr[i])
+        return ret
+
+    def WriteUintMem(self, ptr, data):
+        return self.WriteMem(ptr, struct.pack("<L", data))
+        
+    def WriteMem(self, address, data, debug = 1):
+        try:
+            self.uc.mem_write(address, data)
+        except:
+            logger.error('* Error in writing memory: %.8x (size: %.8x)' % (address, len(data)))
+            traceback.print_exc(file = sys.stdout)
+
+    def Map(self, base, size):        
+        while base<0x100000000:
+            try:
+                self.uc.mem_map(base, size)
+                break
+            except:
+                pass
+            base += 0x1000
+            
+        return base
+
+    def ReadMemoryFile(self, filename, base, size = 0, fixed_allocation = False):
+        with open(filename, 'rb') as fd:
+            if size>0:
+                data = fd.read(size)
+            else:
+                data = fd.read()
+                size = len(data)
+
+        logger.debug('* ReadMemoryFile: %.8x (size: %.8x)' % (base, len(data)))
+        logger.debug(' > self.uc.mem_map(base = %.8x, size = %.8x)' % (base, size))
+
+        if fixed_allocation:
+            try:
+                self.uc.mem_map(base, size)
+            except:
+                logger.error('* Error in memory mapping: %.8x (size: %.8x)' % (base, len(data)))
+                traceback.print_exc(file = sys.stdout)
+        else:
+            base = self.Map(base, size)
+
+        logger.debug(' > WriteMem(base = %.8x, size = %.8x)' % (base, len(data)))
+        self.WriteMem(base, data, debug = 0)
+        return (base, size)

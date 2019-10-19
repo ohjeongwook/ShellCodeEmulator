@@ -55,9 +55,9 @@ class Layout:
         return to_ret
 
     def Setup(self, gdt_addr = 0x80043000, gdt_limit = 0x1000, gdt_entry_size = 0x8, fs_base = 0x0f4c000, fs_limit = 0x00001000):
-        self.UC.mem_map(gdt_addr, gdt_limit)
+        self.UC.Memory.Map(gdt_addr, gdt_limit)
         gdt = [self.CreateGDTEntry(0,0,0,0) for i in range(31)]
-        self.UC.mem_map(fs_base, fs_limit)
+        self.UC.Memory.Map(fs_base, fs_limit)
 
         gdt[14] = self.CreateGDTEntry(fs_base, fs_limit , A_PRESENT | A_DATA | A_DATA_WRITABLE | A_PRIV_0 | A_DIR_CON_BIT, F_PROT_32)  
         gdt[15] = self.CreateGDTEntry(0, 0xffffffff, A_PRESENT | A_DATA | A_DATA_WRITABLE | A_PRIV_3 | A_DIR_CON_BIT, F_PROT_32)
@@ -67,21 +67,21 @@ class Layout:
 
         for idx, value in enumerate(gdt):
             offset = idx * gdt_entry_size
-            self.UC.mem_write(gdt_addr + offset, value)
+            self.UC.Memory.WriteMem(gdt_addr + offset, value)
         
-        self.UC.reg_write(UC_X86_REG_GDTR, (0, gdt_addr, len(gdt) * gdt_entry_size-1, 0x0))
+        self.UC.Register.WriteReg(UC_X86_REG_GDTR, (0, gdt_addr, len(gdt) * gdt_entry_size-1, 0x0))
 
         selector = self.CreateSelector(14, S_GDT | S_PRIV_0)
-        self.UC.reg_write(UC_X86_REG_FS, selector)
+        self.UC.Register.WriteReg(UC_X86_REG_FS, selector)
 
         selector = self.CreateSelector(15, S_GDT | S_PRIV_3)
-        self.UC.reg_write(UC_X86_REG_GS, selector)
+        self.UC.Register.WriteReg(UC_X86_REG_GS, selector)
 
         selector = self.CreateSelector(16, S_GDT | S_PRIV_3)
-        self.UC.reg_write(UC_X86_REG_DS, selector)
+        self.UC.Register.WriteReg(UC_X86_REG_DS, selector)
 
         selector = self.CreateSelector(17, S_GDT | S_PRIV_3)
-        self.UC.reg_write(UC_X86_REG_CS, selector)
+        self.UC.Register.WriteReg(UC_X86_REG_CS, selector)
 
         selector = self.CreateSelector(18, S_GDT | S_PRIV_0)
-        self.UC.reg_write(UC_X86_REG_SS, selector)
+        self.UC.Register.WriteReg(UC_X86_REG_SS, selector)

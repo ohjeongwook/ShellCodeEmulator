@@ -19,3 +19,15 @@ pip install unicorn --upgrade
 pip install git+https://github.com/ohjeongwook/windbgtool --upgrade
 pip install git+https://github.com/ohjeongwook/idatool --upgrade
 ```
+
+## Installing ShellcodeEmulator
+
+```
+pip install git+https://github.com/ohjeongwook/ShellcodeEmulator
+```
+
+* Upgrading existing ShellcodeEmulator
+
+```
+pip install git+https://github.com/ohjeongwook/ShellcodeEmulator --upgrade
+```
