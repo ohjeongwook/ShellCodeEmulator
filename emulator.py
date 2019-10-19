@@ -57,11 +57,7 @@ class ShellEmu:
         #self.Conn = sqlite3.connect("Emulator.db", check_same_thread = False)
         #self.Cursor = self.Conn.cursor()
         #self.Cursor.execute('''CREATE TABLE CodeExecution (address int)''') 
-
-    def CodeHookForDump(self, uc, address, size, user_data):
-        self.UC.Instruction.DumpContext()
-        print('')
-            
+          
     def MemoryWriteCallback(self, uc, access, address, size, value, user_data):
         if access == UC_MEM_WRITE:
             eip = uc.reg_read(UC_X86_REG_EIP)
@@ -77,16 +73,12 @@ class ShellEmu:
                     end
                 )
 
-    def CodeExecutionCallback(self, uc, address, size, user_data):
-        if self.Debug>0:            
-            logger.debug("CodeExecutionCallback: 0x%.8x" % address)
-            self.UC.Instruction.DumpContext()
-            logger.debug("")
-
+    def InstructionCallback(self, uc, address, size, user_data):
+        self.UC.Instruction.DumpContext()
         #self.Cursor.execute("INSERT INTO CodeExecution VALUES (%d)" % address)
         #self.Conn.commit()
 
-        if not self.HitMap.has_key(address):
+        if not address in self.HitMap:
             self.HitMap[address] = 1
         else:
             self.HitMap[address] += 1
@@ -232,9 +224,6 @@ class ShellEmu:
             fs_base = self.UC.Memory.Map(fs_base, len(fs_data))
             self.UC.Memory.WriteMem(fs_base, tib_bytes, debug = 0)
 
-    def TraceExecution(self, uc, address, size, user_data):
-        self.UC.Instruction.DumpContext(dump_registers = True)
-
     def Run(self, trace_self_modification = False, fs_base = 0x0f4c000, print_first_instructions = False):
         gdt_layout = gdt.Layout(self.UC)
         gdt_layout.Setup(fs_base = fs_base)
@@ -252,15 +241,11 @@ class ShellEmu:
             logger.info("Writing shellcode to %x (len=%x)", self.CodeStart, self.CodeLen)
             self.UC.Memory.WriteMem(self.CodeStart, shellcode_bytes, debug = 0)            
 
-        """
-        self.HookUnmappedMemoryAccess()
         if trace_self_modification:
             self.HookMemoryWrite(self.CodeStart, self.CodeStart+self.CodeLen)
-        self.HookMemoryAccess(self.CodeStart, self.CodeStart+self.CodeLen)
-        """
 
         if print_first_instructions:
-            self.UC.AddHook(UC_HOOK_CODE, self.TraceExecution, None, self.CodeStart, self.CodeStart+5)
+            self.UC.AddHook(UC_HOOK_CODE, self.InstructionCallback, None, self.CodeStart, self.CodeStart+5)
 
         api_hook = api.Hook(self.UC, self.Debugger)
         api_hook.Start()
@@ -301,4 +286,4 @@ if __name__ == '__main__':
             shellcode_bytes += parser.GetBytes(name)
 
     shell_emu = ShellEmu(shellcode_filename, shellcode_bytes = shellcode_bytes, dump_filename = options.dump_filename)
-    shell_emu.Run(False, print_first_instructions = True)
+    shell_emu.Run(trace_self_modification = True, print_first_instructions = True)
