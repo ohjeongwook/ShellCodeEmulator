@@ -14,6 +14,7 @@ class Hook:
         self.Emulator = emulator
         self.UC = emulator.uc
         self.TraceModules = ['ntdll', 'kernel32', 'kernelbase']
+        self.LastCodeInfo = {}
 
     def ReturnFunction(self, uc, return_address, arg_count, return_value):
         print('Return Address: %x' % (return_address))
@@ -25,7 +26,7 @@ class Hook:
         uc.reg_write(UC_X86_REG_EAX, return_value)
 
     def Callback(self, uc, address, size, user_data):
-        self.UC.Instruction.DumpDisasm(address, size, resolve_symbol = True)
+        self.Emulator.Instruction.DumpDisasm(address, size, resolve_symbol = True)
 
         code = uc.mem_read(address, size)
         try:
@@ -182,4 +183,5 @@ class Hook:
         for trace_module in self.TraceModules:
             for (symbol, address) in self.Emulator.Debugger.SymbolToAddress.items():
                 logger.debug("api.Hook.Start: %s - %s (%x)", trace_module, symbol, address)
-                self.UC.AddHook(UC_HOOK_CODE, self.Callback, trace_module, address, address)
+                self.Emulator.AddHook(UC_HOOK_CODE, self.Callback, trace_module, address, address)
+

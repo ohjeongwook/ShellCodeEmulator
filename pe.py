@@ -1,10 +1,16 @@
+import sys
 import struct
+import logging
+import traceback
 
 upck32 = lambda x: struct.unpack('I', x)[0]
 pck32 = lambda x: struct.pack('I', x)
 
+logger = logging.getLogger(__name__)
+
 class PEStructure:
-    def __init__(self, tib_bytes = None, stack_base = 0, stack_limit = 0, fs = 0, teb_addr = 0, peb_addr = 0):
+    def __init__(self, emulator, tib_bytes = None, stack_base = 0, stack_limit = 0, fs = 0, teb_addr = 0, peb_addr = 0):
+        self.Emulator = emulator
         self.StackBase = stack_base
         self.StackLimit = stack_limit
         self.FS = fs
@@ -83,3 +89,82 @@ class PEStructure:
         fs_data += pck32(self.PebAddr)
         fs_data += pck32(0x0)
         return fs_data
+
+    def LoadProcessMemory(self):
+        self.Emulator.Debugger.SetSymbolPath()
+        self.Emulator.Debugger.EnumerateModules()
+        
+        for address in self.Emulator.Debugger.GetAddressList():
+            if address['State'] in ('MEM_FREE', 'MEM_RESERVE') or address['Usage'] == 'Free':
+                continue
+
+            logger.debug("Mapping %.8x ~ %.8x (size: %.8x) - %s %s" % (
+                                                                address['BaseAddr'], 
+                                                                address['BaseAddr']+address['RgnSize'], 
+                                                                address['RgnSize'], 
+                                                                address['Usage'], 
+                                                                address['Comment']
+                                                            )
+                                                        )
+
+            if address['Usage'].startswith('Stack'):
+                self.StackLimit = address['BaseAddr']
+                self.StackSize = address['RgnSize']
+                self.StackBase = address['BaseAddr']+address['RgnSize']
+                
+                logger.debug('\tStack: 0x%.8x ~ 0x%.8x (0x%.8x)' % (self.StackLimit, self.StackBase, self.StackSize))
+
+                self.Emulator.Register.Write("esp", address['BaseAddr']+address['RgnSize']-0x100)
+                self.Emulator.Register.Write("ebp", address['BaseAddr']+address['RgnSize']-0x100)
+
+            if self.Emulator.Debugger:
+                tmp_dmp_filename = 'tmp.dmp'
+                try:
+                    self.Emulator.Debugger.RunCmd(".writemem %s %x L?%x" % (tmp_dmp_filename, address['BaseAddr'], address['RgnSize']))
+                except:
+                    logger.debug("* Writemem failed")
+                    traceback.print_exc(file = sys.stdout)
+
+                self.Emulator.Memory.ReadMemoryFile(tmp_dmp_filename, address['BaseAddr'], size = address['RgnSize'], fixed_allocation = True)
+            else:
+                self.Emulator.Memory.Map(address['BaseAddr'], address['RgnSize'])
+
+                try:
+                    bytes_list = self.Emulator.Debugger.GetBytes(address['BaseAddr'], address['RgnSize'])
+                except:
+                    logger.debug("* loadBytes failed")
+                    traceback.print_exc(file = sys.stdout)
+                    continue
+
+                bytes = ''
+                for n in bytes_list:
+                    bytes += chr(n)
+
+                self.Emulator.Memory.WriteMem(address['BaseAddr'], bytes)
+
+    def SetupStack(self):
+        self.StackSize = 0x1000
+        self.StackLimit = self.Emulator.Memory.Map(0x1000, self.StackSize)
+        self.StackBase = self.StackLimit+self.StackSize
+        logger.debug("* Setup stack at 0x%.8x ~ 0x%.8x" % (self.StackLimit, self.StackBase))
+
+        self.Emulator.Register.Write("esp", self.StackBase-0x100)
+        self.Emulator.Register.Write("esp", self.StackBase-0x100)
+
+    def LoadTib(self, tib_filename = 'tib.bin', fs_base = 0x0f4c000):
+        if self.Emulator.Debugger and not tib_filename:
+            tib_filename = 'tib.dmp'
+            self.Emulator.Debugger.RunCmd(".writemem %s fs:0 L?0x1000" % tib_filename)
+
+        if tib_filename:
+            with open(tib_filename, 'rb') as fd:
+                tib_bytes = fd.read()
+                self.TIB = self._ReadTIB(tib_bytes)
+                self.Emulator.Memory.WriteMem(fs_base, tib_bytes, debug = 0)
+                logger.info("Writing TIB to 0x%.8x" % fs_base)
+        else:
+            self.TebAddr = 0
+            self.PebAddr = 0
+            tib_bytes = self.TIB.InitFS()
+            fs_base = self.Emulator.Memory.Map(fs_base, len(tib_bytes))
+            self.Emulator.Memory.WriteMem(fs_base, tib_bytes, debug = 0)
