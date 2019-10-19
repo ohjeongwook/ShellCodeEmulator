@@ -22,12 +22,13 @@ except:
 
 import gdt
 
+logger = logging.getLogger(__name__)
+
 upck32 = lambda x: struct.unpack('I', x)[0]
 pck32 = lambda x: struct.pack('I', x)
 
 class PEStructure:
     def __init__(self, tib_bytes = None, stack_base = 0, stack_limit = 0, fs = 0, teb_addr = 0, peb_addr = 0):
-        self.logger = logging.getLogger(__name__)
         self.StackBase = stack_base
         self.StackLimit = stack_limit
         self.FS = fs
@@ -113,14 +114,12 @@ class ShellEmu:
         self.ShellcodeBytes = shellcode_bytes
         self.DumpFilename = dump_filename
         self.TraceModules = ['ntdll', 'kernel32', 'kernelbase']
-
-        self.logger = logging.getLogger(__name__)
-
         self.ExhaustiveLoopDumpFrequency = 0x10000
         self.HitMap = {}            
         self.LastCodeAddress = 0
         self.LastCodeSize = 0
 
+        self.uc = Uc(UC_ARCH_X86, UC_MODE_32)
         #self.Conn = sqlite3.connect("Emulator.db", check_same_thread = False)
         #self.Cursor = self.Conn.cursor()
         #self.Cursor.execute('''CREATE TABLE CodeExecution (address int)''')
@@ -245,9 +244,9 @@ class ShellEmu:
 
     def CodeExecutionHook(self, uc, address, size, user_data):
         if self.Debug>0:            
-            self.logger.debug("CodeExecutionHook: 0x%.8x" % address)
+            logger.debug("CodeExecutionHook: 0x%.8x" % address)
             self.DumpContext()
-            self.logger.debug("")
+            logger.debug("")
 
         #self.Cursor.execute("INSERT INTO CodeExecution VALUES (%d)" % address)
         #self.Conn.commit()
@@ -323,7 +322,7 @@ class ShellEmu:
         try:
             self.uc.mem_write(address, data)
         except:
-            self.logger.error('* Error in writing memory: %.8x (size: %.8x)' % (address, len(data)))
+            logger.error('* Error in writing memory: %.8x (size: %.8x)' % (address, len(data)))
             traceback.print_exc(file = sys.stdout)
 
     def AllocateMemory(self, base, size):        
@@ -345,19 +344,19 @@ class ShellEmu:
                 data = fd.read()
                 size = len(data)
 
-        self.logger.debug('* ReadMemoryFile: %.8x (size: %.8x)' % (base, len(data)))
+        logger.debug('* ReadMemoryFile: %.8x (size: %.8x)' % (base, len(data)))
         
-        self.logger.debug(' > self.uc.mem_map(base = %.8x, size = %.8x)' % (base, size))
+        logger.debug(' > self.uc.mem_map(base = %.8x, size = %.8x)' % (base, size))
         if fixed_allocation:
             try:
                 self.uc.mem_map(base, size)
             except:
-                self.logger.error('* Error in memory mapping: %.8x (size: %.8x)' % (base, len(data)))
+                logger.error('* Error in memory mapping: %.8x (size: %.8x)' % (base, len(data)))
                 traceback.print_exc(file = sys.stdout)
         else:
             base = self.AllocateMemory(base, size)
 
-        self.logger.debug(' > WriteMem(base = %.8x, size = %.8x)' % (base, len(data)))
+        logger.debug(' > WriteMem(base = %.8x, size = %.8x)' % (base, len(data)))
         self.WriteMem(base, data, debug = 0)
         return (base, size)
 
@@ -372,7 +371,7 @@ class ShellEmu:
             if address['State'] in ('MEM_FREE', 'MEM_RESERVE') or address['Usage'] == 'Free':
                 continue
 
-            self.logger.debug("Mapping %.8x ~ %.8x (size: %.8x) - %s %s" % (
+            logger.debug("Mapping %.8x ~ %.8x (size: %.8x) - %s %s" % (
                                                                 address['BaseAddr'], 
                                                                 address['BaseAddr']+address['RgnSize'], 
                                                                 address['RgnSize'], 
@@ -386,7 +385,7 @@ class ShellEmu:
                 self.StackSize = address['RgnSize']
                 self.StackBase = address['BaseAddr']+address['RgnSize']
                 
-                self.logger.debug('\tStack: 0x%.8x ~ 0x%.8x (0x%.8x)' % (self.StackLimit, self.StackBase, self.StackSize))
+                logger.debug('\tStack: 0x%.8x ~ 0x%.8x (0x%.8x)' % (self.StackLimit, self.StackBase, self.StackSize))
 
                 self.uc.reg_write(UC_X86_REG_ESP, address['BaseAddr']+address['RgnSize']-0x100)
                 self.uc.reg_write(UC_X86_REG_EBP, address['BaseAddr']+address['RgnSize']-0x100)
@@ -396,7 +395,7 @@ class ShellEmu:
                 try:
                     pykd.dbgCommand(".writemem %s %x L?%x" % (tmp_dmp_filename, address['BaseAddr'], address['RgnSize']))
                 except:
-                    self.logger.debug("* Writemem failed")
+                    logger.debug("* Writemem failed")
                     traceback.print_exc(file = sys.stdout)
                 self.ReadMemoryFile(tmp_dmp_filename, address['BaseAddr'], size = address['RgnSize'], fixed_allocation = True)
             else:
@@ -405,7 +404,7 @@ class ShellEmu:
                 try:
                     bytes_list = pykd.loadBytes(address['BaseAddr'], address['RgnSize'])
                 except:
-                    self.logger.debug("* loadBytes failed")
+                    logger.debug("* loadBytes failed")
                     traceback.print_exc(file = sys.stdout)
                     continue
 
@@ -430,7 +429,7 @@ class ShellEmu:
             try:
                 (return_address, path_to_file, flags, module_filename_addr, module_handle_out_ptr) = self.GetStack(self.uc, 4)
                 if self.Debug>0:
-                    self.logger.debug('PathToFile: %.8x Flags: %.8x ModuleFilename: %.8x ModuleHandle: %.8x' % 
+                    logger.debug('PathToFile: %.8x Flags: %.8x ModuleFilename: %.8x ModuleHandle: %.8x' % 
                                     (
                                         path_to_file, 
                                         flags, 
@@ -440,7 +439,7 @@ class ShellEmu:
                                 )
 
                 module_filename = self.ReadUnicodeString(self.uc, module_filename_addr)
-                self.logger.debug('Module Filename: ' + module_filename)
+                logger.debug('Module Filename: ' + module_filename)
 
                 module_base = self.Debugger.GetModuleBase(module_filename)
                 
@@ -448,7 +447,7 @@ class ShellEmu:
                     module_base = self.Debugger.GetModuleBase(module_filename.split('.')[0])
                     
                 if module_base:                        
-                    self.logger.debug('Write Module Base: %.8x --> %.8x' % 
+                    logger.debug('Write Module Base: %.8x --> %.8x' % 
                                     (
                                         module_base, 
                                         module_handle_out_ptr
@@ -461,7 +460,7 @@ class ShellEmu:
 
         elif name == 'kernel32!GetProcAddress':
             (return_address, module_handle, proc_name_ptr) = self.GetStack(self.uc, 2)
-            self.logger.debug("\tReturnAddress: %.8x, ModuleHandle: %.8x, ProcName: %.8x" % 
+            logger.debug("\tReturnAddress: %.8x, ModuleHandle: %.8x, ProcName: %.8x" % 
                             (
                                 return_address, 
                                 module_handle, 
@@ -473,21 +472,21 @@ class ShellEmu:
             proc_name = self.ReadString(self.uc, proc_name_ptr)
             symbol = "%s!%s" % (module_name, proc_name)
             
-            self.logger.debug('\tSymbol: %s' % symbol)
+            logger.debug('\tSymbol: %s' % symbol)
             address = self.GetSymbolAddress(symbol)
-            self.logger.debug('\tAddress: %x' % (address))
+            logger.debug('\tAddress: %x' % (address))
             self.uc.reg_write(UC_X86_REG_EAX, address)
             self.ReturnFunction(self.uc, return_address, 2, address)
             
         elif name == 'kernel32!LoadLibraryA':
             (return_address, filename_ptr) = self.GetStack(self.uc, 1)
             filename = self.ReadString(self.uc, filename_ptr)
-            self.logger.debug('\tLoadLibraryA Filename:%s' % filename)
+            logger.debug('\tLoadLibraryA Filename:%s' % filename)
 
         elif name == 'kernel32!VirtualAlloc' or name == 'KERNELBASE!VirtualAlloc':
             (return_address, lp_address, dw_size, fl_allocation_type, fl_protect) = self.GetStack(self.uc, 4)
         
-            self.logger.debug('> ReturnAddress: %.8x, lpAddress: %.8x, dwSize: %.8x, flAllocationType: %.8x, flProtect: %.8x' % 
+            logger.debug('> ReturnAddress: %.8x, lpAddress: %.8x, dwSize: %.8x, flAllocationType: %.8x, flProtect: %.8x' % 
                             (
                                 return_address, 
                                 lp_address, 
@@ -504,7 +503,7 @@ class ShellEmu:
                 
                 while 1:
                     try:
-                        self.logger.debug('Allocating at %.8x' % base)
+                        logger.debug('Allocating at %.8x' % base)
                         dw_size += (4096-dw_size%4096)
                         self.uc.mem_map(base, int(dw_size))
                         break
@@ -517,7 +516,7 @@ class ShellEmu:
         elif name == 'ntdll!RtlDecompressBuffer':
             (return_address, compression_format, uncompressed_buffer, uncompressed_buffer_size, compressed_buffer, compressed_buffer_size, final_uncompressed_size) = self.GetStack(self.uc, 6)
             
-            self.logger.debug('> ReturnAddress: %.8x, CompressionFormat: %.8x, UncompressedBuffer: %.8x, UncompressedBufferSize: %.8x, CompressedBuffer: %.8x, CompressedBufferSize: %.8x, FinalUncompressedSize: %.8x' % 
+            logger.debug('> ReturnAddress: %.8x, CompressionFormat: %.8x, UncompressedBuffer: %.8x, UncompressedBufferSize: %.8x, CompressedBuffer: %.8x, CompressedBufferSize: %.8x, FinalUncompressedSize: %.8x' % 
                             (
                                 return_address, 
                                 compression_format, 
@@ -540,7 +539,7 @@ class ShellEmu:
         elif name == 'kernel32!GetFileSize':
             (return_address, hfile, lp_file_size_high) = self.GetStack(self.uc, 2)
             
-            self.logger.debug('> hFile: %.8x, lpFileSizeHigh: %.8x' % 
+            logger.debug('> hFile: %.8x, lpFileSizeHigh: %.8x' % 
                             (
                                 hfile, 
                                 lp_file_size_high
@@ -557,7 +556,7 @@ class ShellEmu:
 
             offset = 0
             for a in asm:
-                self.logger.debug('%.8X: %s\t%s\t%s' % 
+                logger.debug('%.8X: %s\t%s\t%s' % 
                                 (
                                     a.address, 
                                     self.DumpHex(code[offset:offset+a.size]), 
@@ -571,13 +570,13 @@ class ShellEmu:
     def HookAPIExecution(self):
         for trace_module in self.TraceModules:
             (start, end) = self.Debugger.GetModuleRange(trace_module)
-            self.logger.info("* HookAPIExecution %s (%x~%x)", trace_module, start, end)
+            logger.info("* HookAPIExecution %s (%x~%x)", trace_module, start, end)
             self.uc.hook_add(UC_HOOK_CODE, self.APIExecutionHook, trace_module, begin = start, end = end)
 
     def MemoryAccessCallback(self, uc, access, address, size, value, user_data):
         eip = self.uc.reg_read(UC_X86_REG_EIP)
         if access == UC_MEM_WRITE:
-            self.logger.info("* %.8x: Memory Write 0x%.8x (Size:%.8u) <-- 0x%.8x" %
+            logger.info("* %.8x: Memory Write 0x%.8x (Size:%.8u) <-- 0x%.8x" %
                             (
                                 eip-self.CodeStart, 
                                 address, 
@@ -592,7 +591,7 @@ class ShellEmu:
             if size == 4:
                 (value, ) = struct.unpack("<L", bytes)
 
-            self.logger.info("* %.8x (%.8x + %.8x): Memory Read  0x%.8x (Size:%.8u) --> 0x%.8x" %
+            logger.info("* %.8x (%.8x + %.8x): Memory Read  0x%.8x (Size:%.8u) --> 0x%.8x" %
                             (
                                 eip,
                                 self.CodeStart,
@@ -605,14 +604,14 @@ class ShellEmu:
             self.DumpContext()
 
     def HookMemoryAccess(self, start, end):
-            self.uc.hook_add(UC_HOOK_MEM_READ | UC_HOOK_MEM_WRITE, self.MemoryAccessCallback, start, end)
+        self.uc.hook_add(UC_HOOK_MEM_READ | UC_HOOK_MEM_WRITE, self.MemoryAccessCallback, start, end)
 
     def UnmappedMemoryAccessCallback(self, uc, access, address, size, value, user_data):
         ret = False
         if access == UC_MEM_WRITE_UNMAPPED:
-            self.logger.debug("* Memory Write Fail: 0x%.8x (Size:%u) --> 0x%.8x " % (value, size, address))
+            logger.debug("* Memory Write Fail: 0x%.8x (Size:%u) --> 0x%.8x " % (value, size, address))
         elif access == UC_MEM_READ_UNMAPPED or access == UC_MEM_FETCH_UNMAPPED:
-            self.logger.debug("* Memory Read Fail: @0x%x (Size:%u)" % (address, size))
+            logger.debug("* Memory Read Fail: @0x%x (Size:%u)" % (address, size))
         return ret
         
     def HookUnmappedMemoryAccess(self):
@@ -627,12 +626,12 @@ class ShellEmu:
         self.StackSize = 0x1000
         self.StackLimit = self.AllocateMemory(0x1000, self.StackSize)
         self.StackBase = self.StackLimit+self.StackSize
-        self.logger.debug("* Setup stack at 0x%.8x ~ 0x%.8x" % (self.StackLimit, self.StackBase))
+        logger.debug("* Setup stack at 0x%.8x ~ 0x%.8x" % (self.StackLimit, self.StackBase))
 
         self.uc.reg_write(UC_X86_REG_ESP, self.StackBase-0x100)
         self.uc.reg_write(UC_X86_REG_EBP, self.StackBase-0x100)
 
-    def SetupTIB(self, tib_filename = 'tib.bin', fs_base = 0x0f4c000):
+    def LoadTib(self, tib_filename = 'tib.bin', fs_base = 0x0f4c000):
         if self.DumpFilename and not tib_filename:
             tib_filename = 'tib.dmp'
             pykd.dbgCommand(".writemem %s fs:0 L?0x1000" % tib_filename)
@@ -640,33 +639,30 @@ class ShellEmu:
         if tib_filename:
             with open(tib_filename, 'rb') as fd:
                 tib_bytes = fd.read()
-                pe_structure = PEStructure(tib_bytes)
+                self.TIB = PEStructure(tib_bytes)
                 self.WriteMem(fs_base, tib_bytes, debug = 0)
-                self.logger.info("Writing TIB to 0x%.8x" % fs_base)
+                logger.info("Writing TIB to 0x%.8x" % fs_base)
         else:
             self.TebAddr = 0
             self.PebAddr = 0
-            pe_structure = PEStructure()
-            tib_bytes = pe_structure.InitFS()
+            self.TIB = PEStructure()
+            tib_bytes = self.TIB.InitFS()
             fs_base = self.AllocateMemory(fs_base, len(fs_data))
             self.WriteMem(fs_base, tib_bytes, debug = 0)
 
     def OverwriteShellcodeOverEntry(self, shellcode):
         self.CodeLen = len(shellcode)
         self.CodeStart = self.Debugger.GetEntryPoint()
-        self.logger.info("Writing shellcode to %x (len=%x)", self.CodeStart, self.CodeLen)
+        logger.info("Writing shellcode to %x (len=%x)", self.CodeStart, self.CodeLen)
         self.WriteMem(self.CodeStart, shellcode, debug = 0)
 
     def TraceExecution(self, uc, address, size, user_data):
         self.DumpContext(dump_registers = True)
 
-    def Run(self, trace_self_modification = False, fs_base = 0x0f4c000):
-        self.uc = Uc(UC_ARCH_X86, UC_MODE_32)
+    def Run(self, trace_self_modification = False, fs_base = 0x0f4c000, print_first_instructions = False):
         gdt_layout = gdt.Layout(self.uc)
         gdt_layout.Setup(fs_base = fs_base)
         self.LoadProcessMemory()
-        self.SetupStack()
-        # self.SetupTIB(fs_base = fs_base)
 
         if self.ShellcodeBytes:
             shellcode_bytes = self.ShellcodeBytes
@@ -677,17 +673,17 @@ class ShellEmu:
         if shellcode_bytes:
             self.OverwriteShellcodeOverEntry(shellcode_bytes)
 
-        self.HookAPIExecution()
         """
         self.HookUnmappedMemoryAccess()
-
-        self.SetupResolveAPIHook()
-        self.HookMemoryAccess(self.CodeStart, self.CodeStart+self.CodeLen)
         if trace_self_modification:
             self.HookMemoryWrite(self.CodeStart, self.CodeStart+self.CodeLen)
-
-        self.uc.hook_add(UC_HOOK_CODE, self.TraceExecution, None, self.CodeStart, self.CodeStart+self.CodeLen)
+        self.HookMemoryAccess(self.CodeStart, self.CodeStart+self.CodeLen)
         """
+
+        if print_first_instructions:
+            self.uc.hook_add(UC_HOOK_CODE, self.TraceExecution, None, self.CodeStart, self.CodeStart+5)
+
+        self.HookAPIExecution()
 
         try:
             self.uc.emu_start(self.CodeStart, self.CodeStart+self.CodeLen)
@@ -695,33 +691,13 @@ class ShellEmu:
             traceback.print_exc(file = sys.stdout)
             self.DumpContext()
 
-    def DumpAL(self, uc, address, size, user_data):
-        ch = self.uc.reg_read(UC_X86_REG_EAX) & 0xff
-        if ch != 0x00:
-            self.APIName += chr(ch)
-
-    def DumpEBX(self, uc, address, size, user_data):
-        self.logger.debug('%s\t%.8X' % (self.APIName, self.uc.reg_read(UC_X86_REG_EBX)))
-        self.APIName = ''
-
-    def SetupResolveAPIHook(self):
-        self.APIName = ''
-        start = self.CodeStart+0x001F1504-0x001F146D
-        self.uc.hook_add(UC_HOOK_CODE, self.DumpAL, None, start, start+1)
-        
-        start = self.CodeStart+0x001F1516-0x001F146D
-        self.uc.hook_add(UC_HOOK_CODE, self.DumpEBX, None, start, start+2)
-
 if __name__ == '__main__':
-    import logging
     from optparse import OptionParser, Option
 
     logging.basicConfig(level = logging.INFO)
-    root = logging.getLogger()
-    
+    root = logging.getLogger()  
     ch = logging.StreamHandler(sys.stdout)
     ch.setLevel(logging.INFO)
-
     formatter = logging.Formatter('%(message)s')
     ch.setFormatter(formatter)
     root.addHandler(ch)
@@ -744,4 +720,4 @@ if __name__ == '__main__':
             shellcode_bytes += parser.GetBytes(name)
 
     shell_emu = ShellEmu(shellcode_filename, shellcode_bytes = shellcode_bytes, dump_filename = options.dump_filename)
-    shell_emu.Run(False)
+    shell_emu.Run(False, print_first_instructions = True)
