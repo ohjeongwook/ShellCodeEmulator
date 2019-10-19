@@ -36,10 +36,6 @@ S_PRIV_0 = 0x0
 CODE_ADDR = 0x40000
 CODE_SIZE = 0x1000
 
-GDT_ADDR = 0x3000
-GDT_LIMIT = 0x1000
-GDT_ENTRY_SIZE = 0x8
-
 class Layout:
     def __init__(self, uc):
         self.UC = uc
@@ -53,55 +49,54 @@ class Layout:
         to_ret |= ((base >> 24) & 0xff) << 56;
         return pack('<Q',to_ret)
 
-    def WriteGDT(self, gdt, mem):
-        for idx, value in enumerate(gdt):
-            offset = idx * GDT_ENTRY_SIZE
-            self.UC.mem_write(mem + offset, value)
-
     def CreateSelector(self, idx, flags):
         to_ret = flags
         to_ret |= idx << 3
         return to_ret
 
-    def HookUnMappedMemRead(self, uc, type, addr,*args):
-        print(hex(addr))
-        return False
-    
-    def Setup(self):
-        self.UC.hook_add(UC_HOOK_MEM_READ_UNMAPPED, self.HookUnMappedMemRead)
-
-        self.UC.mem_map(GDT_ADDR, GDT_LIMIT)
+    def Setup(self, gdt_addr = 0x80043000, gdt_limit = 0x1000, gdt_entry_size = 0x8, fs_base = 0x0f4c000, fs_limit = 0x00001000):
+        self.UC.mem_map(gdt_addr, gdt_limit)
         gdt = [self.CreateGDTEntry(0,0,0,0) for i in range(31)]
 
-        self.UC.mem_map(0x1000000, 0x1000)
-        gdt[14] = self.CreateGDTEntry(0x1000000, 0x1000 , A_PRESENT | A_DATA | A_DATA_WRITABLE | A_PRIV_0 | A_DIR_CON_BIT, F_PROT_32)  
+        gdt_alloc_address = 0x0
+        gdt_alloc_size = 0x10000
 
-        self.UC.mem_map(0x2000000, 0x1000)
-        gdt[15] = self.CreateGDTEntry(0x2000000, 0x1000, A_PRESENT | A_DATA | A_DATA_WRITABLE | A_PRIV_3 | A_DIR_CON_BIT, F_PROT_32)
+        self.UC.mem_map(fs_base, fs_limit)
+        gdt[14] = self.CreateGDTEntry(fs_base, fs_limit , A_PRESENT | A_DATA | A_DATA_WRITABLE | A_PRIV_0 | A_DIR_CON_BIT, F_PROT_32)  
 
-        self.UC.mem_map(0x3000000, 0x1000000)
-        gdt[16] = self.CreateGDTEntry(0x3000000, 0x1000000 , A_PRESENT | A_DATA | A_DATA_WRITABLE | A_PRIV_3 | A_DIR_CON_BIT, F_PROT_32)  # Data Segment
+        self.UC.mem_map(gdt_alloc_address, gdt_alloc_size)
+        gdt[15] = self.CreateGDTEntry(gdt_alloc_address, gdt_alloc_size, A_PRESENT | A_DATA | A_DATA_WRITABLE | A_PRIV_3 | A_DIR_CON_BIT, F_PROT_32)
+        gdt_alloc_address += gdt_alloc_size
 
-        self.UC.mem_map(0x4000000, 0x1000000)
-        gdt[17] = self.CreateGDTEntry(0x4000000, 0x1000000 , A_PRESENT | A_CODE | A_CODE_READABLE | A_PRIV_3 | A_EXEC | A_DIR_CON_BIT, F_PROT_32)  # Code Segment
+        self.UC.mem_map(gdt_alloc_address, gdt_alloc_size)
+        gdt[16] = self.CreateGDTEntry(gdt_alloc_address, gdt_alloc_size , A_PRESENT | A_DATA | A_DATA_WRITABLE | A_PRIV_3 | A_DIR_CON_BIT, F_PROT_32)  # Data Segment
+        gdt_alloc_address += gdt_alloc_size
 
-        self.UC.mem_map(0x5000000, 0x1000000)
-        gdt[18] = self.CreateGDTEntry(0x5000000, 0x1000000 , A_PRESENT | A_DATA | A_DATA_WRITABLE | A_PRIV_0 | A_DIR_CON_BIT, F_PROT_32)  # Stack Segment
+        self.UC.mem_map(gdt_alloc_address, 0x10000)
+        gdt[17] = self.CreateGDTEntry(gdt_alloc_address, 0x10000 , A_PRESENT | A_CODE | A_CODE_READABLE | A_PRIV_3 | A_EXEC | A_DIR_CON_BIT, F_PROT_32)  # Code Segment
+        gdt_alloc_address += 0x10000
 
-        self.WriteGDT(gdt, GDT_ADDR)
-        self.UC.reg_write(UC_X86_REG_GDTR, (0, GDT_ADDR, len(gdt) * GDT_ENTRY_SIZE-1, 0x0))
+        self.UC.mem_map(gdt_alloc_address, gdt_alloc_size)
+        gdt[18] = self.CreateGDTEntry(gdt_alloc_address, gdt_alloc_size , A_PRESENT | A_DATA | A_DATA_WRITABLE | A_PRIV_0 | A_DIR_CON_BIT, F_PROT_32)  # Stack Segment
+        gdt_alloc_address += gdt_alloc_size
+
+        for idx, value in enumerate(gdt):
+            offset = idx * gdt_entry_size
+            self.UC.mem_write(gdt_addr + offset, value)
+        
+        self.UC.reg_write(UC_X86_REG_GDTR, (0, gdt_addr, len(gdt) * gdt_entry_size-1, 0x0))
 
         selector = self.CreateSelector(14, S_GDT | S_PRIV_0)
         self.UC.reg_write(UC_X86_REG_FS, selector)
 
-        selector = self.CreateSelector(15, S_GDT | S_PRIV_3)
-        self.UC.reg_write(UC_X86_REG_GS, selector)
+        #selector = self.CreateSelector(15, S_GDT | S_PRIV_3)
+        #self.UC.reg_write(UC_X86_REG_GS, selector)
 
-        selector = self.CreateSelector(16, S_GDT | S_PRIV_3)
-        self.UC.reg_write(UC_X86_REG_DS, selector)
+        #selector = self.CreateSelector(16, S_GDT | S_PRIV_3)
+        #self.UC.reg_write(UC_X86_REG_DS, selector)
 
-        selector = self.CreateSelector(17, S_GDT | S_PRIV_3)
-        self.UC.reg_write(UC_X86_REG_CS, selector)
+        #selector = self.CreateSelector(17, S_GDT | S_PRIV_3)
+        #self.UC.reg_write(UC_X86_REG_CS, selector)
 
-        selector = self.CreateSelector(18, S_GDT | S_PRIV_0)
-        self.UC.reg_write(UC_X86_REG_SS, selector)
+        #selector = self.CreateSelector(18, S_GDT | S_PRIV_0)
+        #self.UC.reg_write(UC_X86_REG_SS, selector)
