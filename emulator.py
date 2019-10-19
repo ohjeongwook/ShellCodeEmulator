@@ -20,7 +20,6 @@ try:
 except:
     pass
 
-import gdt
 import pe
 import memory
 import instruction
@@ -83,11 +82,9 @@ class ShellEmu:
         self.LastCodeAddress = address
         self.LastCodeSize = size
 
-    def Run(self, trace_self_modification = False, fs_base = 0x0f4c000, print_first_instructions = False):
-        gdt_layout = gdt.Layout(self.Emulator)
-        gdt_layout.Setup(fs_base = fs_base)
-        pe_structure = pe.PEStructure(self.Emulator)
-        pe_structure.LoadProcessMemory()
+    def Run(self, trace_self_modification = False, print_first_instructions = False):
+        process_memory = pe.ProcessMemory(self.Emulator)
+        process_memory.LoadProcessMemory()
 
         if self.ShellcodeBytes:
             shellcode_bytes = self.ShellcodeBytes
