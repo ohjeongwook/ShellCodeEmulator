@@ -57,28 +57,13 @@ class Layout:
     def Setup(self, gdt_addr = 0x80043000, gdt_limit = 0x1000, gdt_entry_size = 0x8, fs_base = 0x0f4c000, fs_limit = 0x00001000):
         self.UC.mem_map(gdt_addr, gdt_limit)
         gdt = [self.CreateGDTEntry(0,0,0,0) for i in range(31)]
-
-        gdt_alloc_address = 0x0
-        gdt_alloc_size = 0x10000
-
         self.UC.mem_map(fs_base, fs_limit)
+
         gdt[14] = self.CreateGDTEntry(fs_base, fs_limit , A_PRESENT | A_DATA | A_DATA_WRITABLE | A_PRIV_0 | A_DIR_CON_BIT, F_PROT_32)  
-
-        self.UC.mem_map(gdt_alloc_address, gdt_alloc_size)
-        gdt[15] = self.CreateGDTEntry(gdt_alloc_address, gdt_alloc_size, A_PRESENT | A_DATA | A_DATA_WRITABLE | A_PRIV_3 | A_DIR_CON_BIT, F_PROT_32)
-        gdt_alloc_address += gdt_alloc_size
-
-        self.UC.mem_map(gdt_alloc_address, gdt_alloc_size)
-        gdt[16] = self.CreateGDTEntry(gdt_alloc_address, gdt_alloc_size , A_PRESENT | A_DATA | A_DATA_WRITABLE | A_PRIV_3 | A_DIR_CON_BIT, F_PROT_32)  # Data Segment
-        gdt_alloc_address += gdt_alloc_size
-
-        self.UC.mem_map(gdt_alloc_address, 0x10000)
-        gdt[17] = self.CreateGDTEntry(gdt_alloc_address, 0x10000 , A_PRESENT | A_CODE | A_CODE_READABLE | A_PRIV_3 | A_EXEC | A_DIR_CON_BIT, F_PROT_32)  # Code Segment
-        gdt_alloc_address += 0x10000
-
-        self.UC.mem_map(gdt_alloc_address, gdt_alloc_size)
-        gdt[18] = self.CreateGDTEntry(gdt_alloc_address, gdt_alloc_size , A_PRESENT | A_DATA | A_DATA_WRITABLE | A_PRIV_0 | A_DIR_CON_BIT, F_PROT_32)  # Stack Segment
-        gdt_alloc_address += gdt_alloc_size
+        gdt[15] = self.CreateGDTEntry(0, 0xffffffff, A_PRESENT | A_DATA | A_DATA_WRITABLE | A_PRIV_3 | A_DIR_CON_BIT, F_PROT_32)
+        gdt[16] = self.CreateGDTEntry(0, 0xffffffff, A_PRESENT | A_DATA | A_DATA_WRITABLE | A_PRIV_3 | A_DIR_CON_BIT, F_PROT_32)  # Data Segment
+        gdt[17] = self.CreateGDTEntry(0, 0xffffffff, A_PRESENT | A_CODE | A_CODE_READABLE | A_PRIV_3 | A_EXEC | A_DIR_CON_BIT, F_PROT_32)  # Code Segment
+        gdt[18] = self.CreateGDTEntry(0, 0xffffffff, A_PRESENT | A_DATA | A_DATA_WRITABLE | A_PRIV_0 | A_DIR_CON_BIT, F_PROT_32)  # Stack Segment
 
         for idx, value in enumerate(gdt):
             offset = idx * gdt_entry_size
@@ -89,14 +74,14 @@ class Layout:
         selector = self.CreateSelector(14, S_GDT | S_PRIV_0)
         self.UC.reg_write(UC_X86_REG_FS, selector)
 
-        #selector = self.CreateSelector(15, S_GDT | S_PRIV_3)
-        #self.UC.reg_write(UC_X86_REG_GS, selector)
+        selector = self.CreateSelector(15, S_GDT | S_PRIV_3)
+        self.UC.reg_write(UC_X86_REG_GS, selector)
 
-        #selector = self.CreateSelector(16, S_GDT | S_PRIV_3)
-        #self.UC.reg_write(UC_X86_REG_DS, selector)
+        selector = self.CreateSelector(16, S_GDT | S_PRIV_3)
+        self.UC.reg_write(UC_X86_REG_DS, selector)
 
-        #selector = self.CreateSelector(17, S_GDT | S_PRIV_3)
-        #self.UC.reg_write(UC_X86_REG_CS, selector)
+        selector = self.CreateSelector(17, S_GDT | S_PRIV_3)
+        self.UC.reg_write(UC_X86_REG_CS, selector)
 
-        #selector = self.CreateSelector(18, S_GDT | S_PRIV_0)
-        #self.UC.reg_write(UC_X86_REG_SS, selector)
+        selector = self.CreateSelector(18, S_GDT | S_PRIV_0)
+        self.UC.reg_write(UC_X86_REG_SS, selector)
