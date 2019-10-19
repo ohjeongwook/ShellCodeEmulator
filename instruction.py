@@ -15,10 +15,6 @@ class Tool:
     def __init__(self, emulator):
         self.Emulator = emulator
         self.uc = emulator.uc
-        self.Debugger = None
-
-    def SetDebugger(self, debugger):
-        self.Debugger = debugger
 
     def SetCodeRange(self, start, end):
         self.Start = start
@@ -41,9 +37,9 @@ class Tool:
         offset = 0
         for instruction in disasm_list:
             symbol_str = ''
-            if self.Debugger:
+            if self.Emulator.Debugger:
                 try:
-                    symbol_str = self.Debugger.ResolveSymbol(instruction.address) + ':\t'
+                    symbol_str = self.Emulator.Debugger.ResolveSymbol(instruction.address) + ':\t'
                 except:
                     pass
                     

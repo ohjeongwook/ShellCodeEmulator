@@ -138,3 +138,19 @@ class Tool:
 
     def HookMemoryAccess(self, start, end):
         self.Emulator.AddHook(UC_HOOK_MEM_READ | UC_HOOK_MEM_WRITE, self.MemoryAccessCallback, start, end)                
+
+    def UnmappedMemoryAccessCallback(self, uc, access, address, size, value, user_data):
+        ret = False
+        if access == UC_MEM_WRITE_UNMAPPED:
+            logger.debug("* Memory Write Fail: 0x%.8x (Size:%u) --> 0x%.8x " % (value, size, address))
+        elif access == UC_MEM_READ_UNMAPPED or access == UC_MEM_FETCH_UNMAPPED:
+            logger.debug("* Memory Read Fail: @0x%x (Size:%u)" % (address, size))
+        return ret
+        
+    def HookUnmappedMemoryAccess(self):
+        self.Emulator.AddHook(
+                    UC_HOOK_MEM_READ_UNMAPPED |
+                    UC_HOOK_MEM_WRITE_UNMAPPED | 
+                    UC_HOOK_MEM_FETCH_UNMAPPED, 
+                    self.UnmappedMemoryAccessCallback
+                )

@@ -10,9 +10,9 @@ import utils
 logger = logging.getLogger(__name__)
 
 class Hook:
-    def __init__(self, uc, debugger):
-        self.UC = uc
-        self.Debugger = debugger
+    def __init__(self, emulator):
+        self.Emulator = emulator
+        self.UC = emulator.uc
         self.TraceModules = ['ntdll', 'kernel32', 'kernelbase']
 
     def ReturnFunction(self, uc, return_address, arg_count, return_value):
@@ -29,7 +29,7 @@ class Hook:
 
         code = uc.mem_read(address, size)
         try:
-            name = self.Debugger.ResolveSymbol(instruction.address)
+            name = self.Emulator.Debugger.ResolveSymbol(instruction.address)
         except:
             name = ''
 
@@ -49,10 +49,10 @@ class Hook:
                 module_filename = self.UC.Memory.ReadUnicodeString(uc, module_filename_addr)
                 logger.debug('Module Filename: ' + module_filename)
 
-                module_base = self.Debugger.GetModuleBase(module_filename)
+                module_base = self.Emulator.Debugger.GetModuleBase(module_filename)
                 
                 if not module_base:
-                    module_base = self.Debugger.GetModuleBase(module_filename.split('.')[0])
+                    module_base = self.Emulator.Debugger.GetModuleBase(module_filename.split('.')[0])
                     
                 if module_base:                        
                     logger.debug('Write Module Base: %.8x --> %.8x' % 
@@ -76,7 +76,7 @@ class Hook:
                             )
                         )
             
-            module_name = self.Debugger.GetModuleNameFromBase(module_handle)
+            module_name = self.Emulator.Debugger.GetModuleNameFromBase(module_handle)
             proc_name = self.UC.Memory.ReadString(uc, proc_name_ptr)
             symbol = "%s!%s" % (module_name, proc_name)
             
@@ -177,9 +177,9 @@ class Hook:
         self.LastCodeInfo = user_data
 
     def Start(self):
-        self.Debugger.LoadSymbols(self.TraceModules)
+        self.Emulator.Debugger.LoadSymbols(self.TraceModules)
 
         for trace_module in self.TraceModules:
-            for (symbol, address) in self.Debugger.SymbolToAddress.items():
+            for (symbol, address) in self.Emulator.Debugger.SymbolToAddress.items():
                 logger.debug("api.Hook.Start: %s - %s (%x)", trace_module, symbol, address)
                 self.UC.AddHook(UC_HOOK_CODE, self.Callback, trace_module, address, address)
