@@ -20,9 +20,9 @@ class ProcessMemory:
         self.PebAddr = peb_addr
 
         if tib_bytes:
-            self.ParseTIB(tib_bytes)
+            self.ParseTEB(tib_bytes)
         
-    def ParseTIB(self, tib_bytes):
+    def ParseTEB(self, tib_bytes):
         unpacked_entries = struct.unpack('I'*13, tib_bytes[0:4*13])
         self.StackBase = unpacked_entries[1]
         self.StackLimit = unpacked_entries[2]
@@ -79,7 +79,7 @@ class ProcessMemory:
         peb_ldr_data += pack32(ldr_address + 0x14)
         return peb_ldr_data
 
-    def InitFS(self):
+    def InitTEB(self):
         fs_data = ''
         fs_data += pack32(0x0)  # 0x0
         fs_data += pack32(self.StackBase)  # 0x4
@@ -109,13 +109,13 @@ class ProcessMemory:
         if tib_filename:
             with open(tib_filename, 'rb') as fd:
                 tib_bytes = fd.read()
-                self.TIB = self.ParseTIB(tib_bytes)
+                self.ParseTEB(tib_bytes)
                 self.Emulator.Memory.WriteMem(fs_base, tib_bytes, debug = 0)
                 logger.info("Writing TIB to 0x%.8x" % fs_base)
         else:
             self.TebAddr = 0
             self.PebAddr = 0
-            tib_bytes = self.TIB.InitFS()
+            tib_bytes = self.InitTEB()
             fs_base = self.Emulator.Memory.Map(fs_base, len(tib_bytes))
             self.Emulator.Memory.WriteMem(fs_base, tib_bytes, debug = 0)
 
