@@ -79,7 +79,7 @@ class Hook:
             symbol = "%s!%s" % (module_name, proc_name)
             
             logger.debug('\tSymbol: %s' % symbol)
-            address = self.GetSymbolAddress(symbol)
+            #TODO: address = self.GetSymbolAddress(symbol)
             logger.debug('\tAddress: %x' % (address))
             uc.reg_write(UC_X86_REG_EAX, address)
             self.ReturnFunction(uc, return_address, 2, address)
@@ -178,6 +178,6 @@ class Hook:
         self.Debugger.LoadSymbols(self.TraceModules)
 
         for trace_module in self.TraceModules:
-            (start, end) = self.Debugger.GetModuleRange(trace_module)
-            logger.info("* HookAPIExecution %s (%x~%x)", trace_module, start, end)
-            self.UC.AddHook(UC_HOOK_CODE, self.Callback, trace_module, start, end)
+            for (symbol, address) in self.Debugger.SymbolToAddress.items():
+                logger.debug("api.Hook.Start: %s - %s (%x)", trace_module, symbol, address)
+                self.UC.AddHook(UC_HOOK_CODE, self.Callback, trace_module, address, address)
