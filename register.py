@@ -10,8 +10,9 @@ from unicorn import *
 from unicorn.x86_const import *
 
 class Tool:
-    def __init__(self, uc):
-        self.uc = uc
+    def __init__(self, emulator):
+        self.Emulator = emulator
+        self.uc = emulator.uc
 
     def Write(self, register_name, value):
         if register_name == "esp":

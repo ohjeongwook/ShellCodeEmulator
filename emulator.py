@@ -29,12 +29,12 @@ import api
 
 logger = logging.getLogger(__name__)
 
-class UC:
+class Emulator:
     def __init__(self):
         self.uc = Uc(UC_ARCH_X86, UC_MODE_32)
-        self.Instruction = instruction.Tool(self.uc)
-        self.Memory = memory.Tool(self.uc)
-        self.Register = register.Tool(self.uc)
+        self.Instruction = instruction.Tool(self)
+        self.Memory = memory.Tool(self)
+        self.Register = register.Tool(self)
 
     def AddHook(self, hook_type, callback, arg, start, end):
         self.uc.hook_add(hook_type, callback, arg, start, end)
@@ -52,29 +52,14 @@ class ShellEmu:
         self.LastCodeAddress = 0
         self.LastCodeSize = 0
 
-        self.UC = UC()
+        self.Emulator = Emulator()
         
         #self.Conn = sqlite3.connect("Emulator.db", check_same_thread = False)
         #self.Cursor = self.Conn.cursor()
         #self.Cursor.execute('''CREATE TABLE CodeExecution (address int)''') 
-          
-    def MemoryWriteCallback(self, uc, access, address, size, value, user_data):
-        if access == UC_MEM_WRITE:
-            eip = uc.reg_read(UC_X86_REG_EIP)
-            logger.debug("* %.8x: Memory Write 0x%.8x (Size:%.8u) <-- 0x%.8x" %(eip-self.CodeStart, address, size, value))
-            self.UC.Instruction.DumpContext()
-
-    def HookMemoryWrite(self, start, end):
-        self.UC.AddHook(
-                    UC_HOOK_MEM_WRITE, 
-                    self.MemoryWriteCallback, 
-                    None, 
-                    start, 
-                    end
-                )
 
     def InstructionCallback(self, uc, address, size, user_data):
-        self.UC.Instruction.DumpContext()
+        self.Emulator.Instruction.DumpContext()
         #self.Cursor.execute("INSERT INTO CodeExecution VALUES (%d)" % address)
         #self.Conn.commit()
 
@@ -85,7 +70,7 @@ class ShellEmu:
             
             if self.HitMap[address]%self.ExhaustiveLoopDumpFrequency == 0:
                 print('Exhaustive Loop found: %x' % (self.HitMap[address]))
-                self.UC.Instruction.DumpContext()
+                self.Emulator.Instruction.DumpContext()
                 print('')
                 pass
 
@@ -97,7 +82,7 @@ class ShellEmu:
         self.Debugger.LoadDump(self.DumpFilename)
         self.Debugger.SetSymbolPath()
         self.Debugger.EnumerateModules()
-        self.UC.Instruction.SetDebugger(self.Debugger)
+        self.Emulator.Instruction.SetDebugger(self.Debugger)
         
         for address in self.Debugger.GetAddressList():
             if address['State'] in ('MEM_FREE', 'MEM_RESERVE') or address['Usage'] == 'Free':
@@ -119,8 +104,8 @@ class ShellEmu:
                 
                 logger.debug('\tStack: 0x%.8x ~ 0x%.8x (0x%.8x)' % (self.StackLimit, self.StackBase, self.StackSize))
 
-                self.UC.Register.Write("esp", address['BaseAddr']+address['RgnSize']-0x100)
-                self.UC.Register.Write("ebp", address['BaseAddr']+address['RgnSize']-0x100)        
+                self.Emulator.Register.Write("esp", address['BaseAddr']+address['RgnSize']-0x100)
+                self.Emulator.Register.Write("ebp", address['BaseAddr']+address['RgnSize']-0x100)        
             if self.DumpFilename:
                 tmp_dmp_filename = 'tmp.dmp'
                 try:
@@ -128,9 +113,9 @@ class ShellEmu:
                 except:
                     logger.debug("* Writemem failed")
                     traceback.print_exc(file = sys.stdout)
-                self.UC.Memory.ReadMemoryFile(tmp_dmp_filename, address['BaseAddr'], size = address['RgnSize'], fixed_allocation = True)
+                self.Emulator.Memory.ReadMemoryFile(tmp_dmp_filename, address['BaseAddr'], size = address['RgnSize'], fixed_allocation = True)
             else:
-                self.UC.Memory.Map(address['BaseAddr'], address['RgnSize'])
+                self.Emulator.Memory.Map(address['BaseAddr'], address['RgnSize'])
 
                 try:
                     bytes_list = pykd.loadBytes(address['BaseAddr'], address['RgnSize'])
@@ -143,42 +128,9 @@ class ShellEmu:
                 for n in bytes_list:
                     bytes += chr(n)
 
-                self.UC.Memory.WriteMem(address['BaseAddr'], bytes, debug = debug)
+                self.Emulator.Memory.WriteMem(address['BaseAddr'], bytes, debug = debug)
                 
             self.LastCodeInfo = {}
-
-    def MemoryAccessCallback(self, uc, access, address, size, value, user_data):
-        eip = uc.reg_read(UC_X86_REG_EIP)
-        if access == UC_MEM_WRITE:
-            logger.info("* %.8x: Memory Write 0x%.8x (Size:%.8u) <-- 0x%.8x" %
-                            (
-                                eip-self.CodeStart, 
-                                address, 
-                                size, 
-                                value
-                            )
-                        )
-
-        elif access == UC_MEM_READ:
-            bytes = uc.mem_read(address, size)
-            
-            if size == 4:
-                (value, ) = struct.unpack("<L", bytes)
-
-            logger.info("* %.8x (%.8x + %.8x): Memory Read  0x%.8x (Size:%.8u) --> 0x%.8x" %
-                            (
-                                eip,
-                                self.CodeStart,
-                                eip-self.CodeStart, 
-                                address, 
-                                size, 
-                                value
-                            )
-                        )
-            self.UC.Instruction.DumpContext()
-
-    def HookMemoryAccess(self, start, end):
-        self.UC.AddHook(UC_HOOK_MEM_READ | UC_HOOK_MEM_WRITE, self.MemoryAccessCallback, start, end)
 
     def UnmappedMemoryAccessCallback(self, uc, access, address, size, value, user_data):
         ret = False
@@ -189,7 +141,7 @@ class ShellEmu:
         return ret
         
     def HookUnmappedMemoryAccess(self):
-        self.UC.AddHook(
+        self.Emulator.AddHook(
                     UC_HOOK_MEM_READ_UNMAPPED |
                     UC_HOOK_MEM_WRITE_UNMAPPED | 
                     UC_HOOK_MEM_FETCH_UNMAPPED, 
@@ -198,12 +150,12 @@ class ShellEmu:
 
     def SetupStack(self):
         self.StackSize = 0x1000
-        self.StackLimit = self.UC.Memory.Map(0x1000, self.StackSize)
+        self.StackLimit = self.Emulator.Memory.Map(0x1000, self.StackSize)
         self.StackBase = self.StackLimit+self.StackSize
         logger.debug("* Setup stack at 0x%.8x ~ 0x%.8x" % (self.StackLimit, self.StackBase))
 
-        self.UC.Register.Write("esp", self.StackBase-0x100)
-        self.UC.Register.Write("esp", self.StackBase-0x100)
+        self.Emulator.Register.Write("esp", self.StackBase-0x100)
+        self.Emulator.Register.Write("esp", self.StackBase-0x100)
 
     def LoadTib(self, tib_filename = 'tib.bin', fs_base = 0x0f4c000):
         if self.DumpFilename and not tib_filename:
@@ -214,18 +166,18 @@ class ShellEmu:
             with open(tib_filename, 'rb') as fd:
                 tib_bytes = fd.read()
                 self.TIB = pe.PEStructure(tib_bytes)
-                self.UC.Memory.WriteMem(fs_base, tib_bytes, debug = 0)
+                self.Emulator.Memory.WriteMem(fs_base, tib_bytes, debug = 0)
                 logger.info("Writing TIB to 0x%.8x" % fs_base)
         else:
             self.TebAddr = 0
             self.PebAddr = 0
             self.TIB = pe.PEStructure()
             tib_bytes = self.TIB.InitFS()
-            fs_base = self.UC.Memory.Map(fs_base, len(fs_data))
-            self.UC.Memory.WriteMem(fs_base, tib_bytes, debug = 0)
+            fs_base = self.Emulator.Memory.Map(fs_base, len(fs_data))
+            self.Emulator.Memory.WriteMem(fs_base, tib_bytes, debug = 0)
 
     def Run(self, trace_self_modification = False, fs_base = 0x0f4c000, print_first_instructions = False):
-        gdt_layout = gdt.Layout(self.UC)
+        gdt_layout = gdt.Layout(self.Emulator)
         gdt_layout.Setup(fs_base = fs_base)
         self.LoadProcessMemory()
 
@@ -239,23 +191,23 @@ class ShellEmu:
             self.CodeLen = len(shellcode_bytes)
             self.CodeStart = self.Debugger.GetEntryPoint()
             logger.info("Writing shellcode to %x (len=%x)", self.CodeStart, self.CodeLen)
-            self.UC.Memory.WriteMem(self.CodeStart, shellcode_bytes, debug = 0)            
+            self.Emulator.Memory.WriteMem(self.CodeStart, shellcode_bytes, debug = 0)            
 
         if trace_self_modification:
-            self.HookMemoryWrite(self.CodeStart, self.CodeStart+self.CodeLen)
+            self.Emulator.Memory.HookMemoryWrite(self.CodeStart, self.CodeStart+self.CodeLen)
 
         if print_first_instructions:
-            self.UC.AddHook(UC_HOOK_CODE, self.InstructionCallback, None, self.CodeStart, self.CodeStart+5)
+            self.Emulator.AddHook(UC_HOOK_CODE, self.InstructionCallback, None, self.CodeStart, self.CodeStart+5)
 
-        api_hook = api.Hook(self.UC, self.Debugger)
+        api_hook = api.Hook(self.Emulator, self.Debugger)
         api_hook.Start()
 
-        self.UC.Instruction.SetCodeRange(self.CodeStart, self.CodeStart+self.CodeLen)
+        self.Emulator.Instruction.SetCodeRange(self.CodeStart, self.CodeStart+self.CodeLen)
         try:
-            self.UC.Start(self.CodeStart, self.CodeStart+self.CodeLen)
+            self.Emulator.Start(self.CodeStart, self.CodeStart+self.CodeLen)
         except:
             traceback.print_exc(file = sys.stdout)
-            self.UC.Instruction.DumpContext()
+            self.Emulator.Instruction.DumpContext()
 
 if __name__ == '__main__':
     from optparse import OptionParser, Option

@@ -12,8 +12,9 @@ from unicorn.x86_const import *
 import utils
 
 class Tool:
-    def __init__(self, uc):
-        self.uc = uc
+    def __init__(self, emulator):
+        self.Emulator = emulator
+        self.uc = emulator.uc
         self.Debugger = None
 
     def SetDebugger(self, debugger):

@@ -9,8 +9,9 @@ from unicorn.x86_const import *
 logger = logging.getLogger(__name__)
 
 class Tool:
-    def __init__(self, uc):
-        self.uc = uc
+    def __init__(self, emulator):
+        self.Emulator = emulator
+        self.uc = emulator.uc
 
     def ReadString(self, address): 
         null_found = False
@@ -89,3 +90,51 @@ class Tool:
         logger.debug(' > WriteMem(base = %.8x, size = %.8x)' % (base, len(data)))
         self.WriteMem(base, data, debug = 0)
         return (base, size)
+
+    def MemoryWriteCallback(self, uc, access, address, size, value, user_data):
+        if access == UC_MEM_WRITE:
+            eip = uc.reg_read(UC_X86_REG_EIP)
+            logger.debug("* %.8x: Memory Write 0x%.8x (Size:%.8u) <-- 0x%.8x" %(eip-self.CodeStart, address, size, value))
+            self.Emulator.Instruction.DumpContext()
+
+    def HookMemoryWrite(self, start, end):
+        self.Emulator.AddHook(
+                    UC_HOOK_MEM_WRITE, 
+                    self.MemoryWriteCallback, 
+                    None, 
+                    start, 
+                    end
+                )
+
+    def MemoryAccessCallback(self, uc, access, address, size, value, user_data):
+        eip = uc.reg_read(UC_X86_REG_EIP)
+        if access == UC_MEM_WRITE:
+            logger.info("* %.8x: Memory Write 0x%.8x (Size:%.8u) <-- 0x%.8x" %
+                            (
+                                eip-self.CodeStart, 
+                                address, 
+                                size, 
+                                value
+                            )
+                        )
+
+        elif access == UC_MEM_READ:
+            bytes = uc.mem_read(address, size)
+            
+            if size == 4:
+                (value, ) = struct.unpack("<L", bytes)
+
+            logger.info("* %.8x (%.8x + %.8x): Memory Read  0x%.8x (Size:%.8u) --> 0x%.8x" %
+                            (
+                                eip,
+                                self.CodeStart,
+                                eip-self.CodeStart, 
+                                address, 
+                                size, 
+                                value
+                            )
+                        )
+            self.Emulator.Instruction.DumpContext()
+
+    def HookMemoryAccess(self, start, end):
+        self.Emulator.AddHook(UC_HOOK_MEM_READ | UC_HOOK_MEM_WRITE, self.MemoryAccessCallback, start, end)                
