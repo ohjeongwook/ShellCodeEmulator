@@ -124,6 +124,7 @@ class ProcessMemory:
         self.Emulator.Debugger.EnumerateModules()
         
         teb_list = []
+        teb_bytes = []
         for address in self.Emulator.Debugger.GetAddressList():
             if address['State'] in ('MEM_FREE', 'MEM_RESERVE') or address['Usage'] == 'Free':
                 continue
@@ -147,8 +148,8 @@ class ProcessMemory:
                 
                 logger.debug('\tStack: 0x%.8x ~ 0x%.8x (0x%.8x)' % (self.StackLimit, self.StackBase, self.StackSize))
 
-                self.Emulator.Register.Write("esp", address['BaseAddr']+address['RgnSize']-0x100)
-                self.Emulator.Register.Write("ebp", address['BaseAddr']+address['RgnSize']-0x100)
+                self.Emulator.Register.Write("esp", address['BaseAddr']+address['RgnSize']-0x1000)
+                self.Emulator.Register.Write("ebp", address['BaseAddr']+address['RgnSize']-0x1000)
 
             if self.Emulator.Debugger:
                 tmp_dmp_filename = 'tmp.dmp'
@@ -159,6 +160,9 @@ class ProcessMemory:
                     traceback.print_exc(file = sys.stdout)
 
                 self.Emulator.Memory.ReadMemoryFile(tmp_dmp_filename, address['BaseAddr'], size = address['RgnSize'], fixed_allocation = True)
+                if address['Usage'] == 'TEB':
+                    with open (tmp_dmp_filename, 'rb') as fd:
+                        teb_bytes.append(fd.read())
             else:
                 self.Emulator.Memory.Map(address['BaseAddr'], address['RgnSize'])
 
@@ -177,5 +181,13 @@ class ProcessMemory:
 
         if len(teb_list) > 0:
             gdt_layout = gdt.Layout(self.Emulator)
-            logger.debug("* Setting up fs: %s (len=%d)" % (teb_list[0]['BaseAddr'], teb_list[0]['RgnSize']))
-            gdt_layout.Setup(fs_base = teb_list[0]['BaseAddr'], fs_limit = teb_list[0]['RgnSize'])
+            if self.Emulator.Arch == 'x86':
+                segment_limit = 0xffffffff
+                logger.info("* Setting up fs: %x (len=%x)" % (teb_list[0]['BaseAddr'], teb_list[0]['RgnSize']))
+                gdt_layout.Setup(fs_base = teb_list[0]['BaseAddr'], fs_limit = teb_list[0]['RgnSize'], segment_limit = segment_limit)
+            elif self.Emulator.Arch == 'AMD64':
+                segment_limit = 0xffffffffffffffff
+                logger.info("* Setting up gs: %x (len=%x)" % (teb_list[0]['BaseAddr'], teb_list[0]['RgnSize']))
+                gdt_layout.Setup(gs_base = teb_list[0]['BaseAddr'], gs_limit = teb_list[0]['RgnSize'], segment_limit = segment_limit)
+                self.Emulator.Memory.Map(0, len(teb_bytes[0]))
+                self.Emulator.Memory.WriteMem(0, teb_bytes[0]) #64bit hack to map TEB to 0 ~ 

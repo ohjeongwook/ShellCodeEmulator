@@ -15,13 +15,20 @@ class Tool:
     def __init__(self, emulator):
         self.Emulator = emulator
         self.uc = emulator.uc
+        self.LastCodeAddress = 0
+        self.LastCodeSize = 0
+        self.Start = 0
+        self.End = 0
 
     def SetCodeRange(self, start, end):
         self.Start = start
         self.End = end
 
     def Disassemble(self, code, address):
-        md = capstone.Cs(capstone.CS_ARCH_X86, capstone.CS_MODE_32)
+        if self.Emulator.Arch == 'x86':
+            md = capstone.Cs(capstone.CS_ARCH_X86, capstone.CS_MODE_32)
+        elif self.Emulator.Arch == 'AMD64':
+            md = capstone.Cs(capstone.CS_ARCH_X86, capstone.CS_MODE_64)
         return md.disasm(code, address)
 
     def DumpDisasm(self, address, size, resolve_symbol = False, dump_instruction_count = 1):
@@ -61,42 +68,11 @@ class Tool:
             if i >= dump_instruction_count:
                 break
 
-    def DumpRegisters(self):
-        print('eax: %.8X ebx: %.8X ecx: %.8X edx: %.8X' % (
-                            self.uc.reg_read(UC_X86_REG_EAX), 
-                            self.uc.reg_read(UC_X86_REG_EBX), 
-                            self.uc.reg_read(UC_X86_REG_ECX), 
-                            self.uc.reg_read(UC_X86_REG_EDX)
-                        )
-                    )
-                        
-        print('esp: %.8X ebp: %.8X esi: %.8X edi: %.8X' % (
-                            self.uc.reg_read(UC_X86_REG_ESP), 
-                            self.uc.reg_read(UC_X86_REG_EBP), 
-                            self.uc.reg_read(UC_X86_REG_ESI), 
-                            self.uc.reg_read(UC_X86_REG_EDI)
-                        )
-                    )
-                        
-        print('eip: %.8X' % (
-                            self.uc.reg_read(UC_X86_REG_EIP)
-                        )
-                    )
-
-        print(' fs: %.8X gs: %.8X cs: %.8X  ds: %.8X  es: %.8X' % (
-                            self.uc.reg_read(UC_X86_REG_FS), 
-                            self.uc.reg_read(UC_X86_REG_GS), 
-                            self.uc.reg_read(UC_X86_REG_CS), 
-                            self.uc.reg_read(UC_X86_REG_DS), 
-                            self.uc.reg_read(UC_X86_REG_ES)
-                        )
-                    )
-
     def DumpContext(self, dump_registers = True, dump_previous_eip = False):
-        self.DumpDisasm(self.uc.reg_read(UC_X86_REG_EIP), 10)
+        self.DumpDisasm(self.uc.reg_read(self.Emulator.GetReg("eip")), 10)
 
         if dump_registers:
-            self.DumpRegisters()
+            self.Emulator.Register.DumpRegisters()
 
         if dump_previous_eip and self.LastCodeAddress>0:
             print('> Last EIP before this instruction:')

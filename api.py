@@ -18,12 +18,12 @@ class Hook:
 
     def ReturnFunction(self, uc, return_address, arg_count, return_value):
         print('Return Address: %x' % (return_address))
-        uc.reg_write(UC_X86_REG_EIP, return_address)
+        uc.reg_write(self.Emulator.GetReg("eip"), return_address)
 
-        esp = uc.reg_read(UC_X86_REG_ESP)
+        esp = uc.reg_read(self.Emulator.GetReg("esp"))
         print('New ESP: %x' % (esp+4*(arg_count+1)))
-        uc.reg_write(UC_X86_REG_ESP, esp+4*(arg_count+1))        
-        uc.reg_write(UC_X86_REG_EAX, return_value)
+        uc.reg_write(self.Emulator.GetReg("esp"), esp+4*(arg_count+1))        
+        uc.reg_write(self.Emulator.GetReg("eax"), return_value)
 
     def Callback(self, uc, address, size, user_data):
         self.Emulator.Instruction.DumpDisasm(address, size, resolve_symbol = True)
@@ -84,7 +84,7 @@ class Hook:
             logger.debug('\tSymbol: %s' % symbol)
             #TODO: address = self.GetSymbolAddress(symbol)
             logger.debug('\tAddress: %x' % (address))
-            uc.reg_write(UC_X86_REG_EAX, address)
+            uc.reg_write(self.Emulator.GetReg("eax"), address)
             self.ReturnFunction(uc, return_address, 2, address)
             
         elif name == 'kernel32!LoadLibraryA':

@@ -29,15 +29,42 @@ import api
 logger = logging.getLogger(__name__)
 
 class Emulator:
-    def __init__(self, dump_filename):
-        self.uc = Uc(UC_ARCH_X86, UC_MODE_32)
+    def __init__(self, dump_filename, arch = 'AMD64'):
+        self.Arch = arch
+        if arch == 'x86':
+            self.uc = Uc(UC_ARCH_X86, UC_MODE_32)
+        elif arch == 'AMD64':
+            self.uc = Uc(UC_ARCH_X86, UC_MODE_64)
+
         self.Instruction = instruction.Tool(self)
         self.Memory = memory.Tool(self)
         self.Register = register.Tool(self)
         self.Debugger = windbgtool.debugger.DbgEngine()
         self.Debugger.LoadDump(dump_filename)
 
-    def AddHook(self, hook_type, callback, arg, start, end):
+    def GetReg(self, register_name):
+        if register_name == "esp":
+            if self.Arch == 'x86':
+                return UC_X86_REG_ESP
+            elif self.Arch == 'AMD64':
+                return UC_X86_REG_RSP
+        elif register_name == "ebp":
+            if self.Arch == 'x86':
+                return UC_X86_REG_EBP
+            elif self.Arch == 'AMD64':
+                return UC_X86_REG_RBP
+        elif register_name == "eip":
+            if self.Arch == 'x86':
+                return UC_X86_REG_EIP
+            elif self.Arch == 'AMD64':
+                return UC_X86_REG_RIP
+        elif register_name == "eax":
+            if self.Arch == 'x86':
+                return UC_X86_REG_EAX
+            elif self.Arch == 'AMD64':
+                return UC_X86_REG_RAX
+
+    def AddHook(self, hook_type, callback, arg = None, start = 0, end = 0):
         self.uc.hook_add(hook_type, callback, arg, start, end)
 
     def Start(self, start, end):
@@ -73,7 +100,7 @@ class ShellEmu:
         else:
             self.HitMap[address] += 1
             
-            if self.HitMap[address]%self.ExhaustiveLoopDumpFrequency == 0:
+            if self.HitMap[address] % self.ExhaustiveLoopDumpFrequency == 0:
                 print('Exhaustive Loop found: %x' % (self.HitMap[address]))
                 self.Emulator.Instruction.DumpContext()
                 print('')
@@ -102,8 +129,9 @@ class ShellEmu:
             self.Emulator.Memory.HookMemoryWrite(self.CodeStart, self.CodeStart+self.CodeLen)
 
         if print_first_instructions:
-            self.Emulator.AddHook(UC_HOOK_CODE, self.InstructionCallback, None, self.CodeStart, self.CodeStart+5)
+            self.Emulator.AddHook(UC_HOOK_CODE, self.InstructionCallback, None, self.CodeStart, self.CodeStart+1)
 
+        self.Emulator.Memory.HookUnmappedMemoryAccess()
         api_hook = api.Hook(self.Emulator)
         api_hook.Start()
 

@@ -33,7 +33,7 @@ class Tool:
         return ret
 
     def GetStack(self, arg_count):
-        esp = self.uc.reg_read(UC_X86_REG_ESP)
+        esp = self.uc.reg_read(self.Emulator.GetReg("esp"))
         ret = struct.unpack("<"+"L"*(arg_count+1), self.uc.mem_read(esp, 4*(1+arg_count)))    
         return ret
 
@@ -93,8 +93,8 @@ class Tool:
 
     def MemoryWriteCallback(self, uc, access, address, size, value, user_data):
         if access == UC_MEM_WRITE:
-            eip = uc.reg_read(UC_X86_REG_EIP)
-            logger.debug("* %.8x: Memory Write 0x%.8x (Size:%.8u) <-- 0x%.8x" %(eip-self.CodeStart, address, size, value))
+            eip = uc.reg_read(self.Emulator.GetReg("eip"))
+            logger.debug("* %.8x: Memory Write 0x%.8x (Size:%.8u) <-- 0x%.8x" %(eip - self.CodeStart, address, size, value))
             self.Emulator.Instruction.DumpContext()
 
     def HookMemoryWrite(self, start, end):
@@ -107,7 +107,7 @@ class Tool:
                 )
 
     def MemoryAccessCallback(self, uc, access, address, size, value, user_data):
-        eip = uc.reg_read(UC_X86_REG_EIP)
+        eip = uc.reg_read(self.Emulator.GetReg("eip"))
         if access == UC_MEM_WRITE:
             logger.info("* %.8x: Memory Write 0x%.8x (Size:%.8u) <-- 0x%.8x" %
                             (
@@ -140,15 +140,19 @@ class Tool:
         self.Emulator.AddHook(UC_HOOK_MEM_READ | UC_HOOK_MEM_WRITE, self.MemoryAccessCallback, start, end)                
 
     def UnmappedMemoryAccessCallback(self, uc, access, address, size, value, user_data):
-        ret = False
         if access == UC_MEM_WRITE_UNMAPPED:
-            logger.debug("* Memory Write Fail: 0x%.8x (Size:%u) --> 0x%.8x " % (value, size, address))
-        elif access == UC_MEM_READ_UNMAPPED or access == UC_MEM_FETCH_UNMAPPED:
-            logger.debug("* Memory Read Fail: @0x%x (Size:%u)" % (address, size))
-        return ret
+            logger.info("* Memory Write Fail: 0x%.8x (Size:%u) --> 0x%.8x " % (value, size, address))
+        elif access == UC_MEM_READ_UNMAPPED:
+            logger.info("* Memory Read Fail: @0x%x (Size:%u)" % (address, size))
+        elif access == UC_MEM_FETCH_UNMAPPED:
+            logger.info("* Memory Fetch Fail: @0x%x (Size:%u)" % (address, size))
+
+        self.Emulator.Instruction.DumpContext()
+        print(hex(self.uc.reg_read(self.Emulator.GetReg("eip"))))
+        return False
         
     def HookUnmappedMemoryAccess(self):
-        self.Emulator.AddHook(
+        self.uc.hook_add(
                     UC_HOOK_MEM_READ_UNMAPPED |
                     UC_HOOK_MEM_WRITE_UNMAPPED | 
                     UC_HOOK_MEM_FETCH_UNMAPPED, 

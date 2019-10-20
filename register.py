@@ -15,10 +15,60 @@ class Tool:
         self.uc = emulator.uc
 
     def Write(self, register_name, value):
-        if register_name == "esp":
-            self.uc.reg_write(UC_X86_REG_ESP, value)
-        elif register_name == "ebp":
-            self.uc.reg_write(UC_X86_REG_EBP, value)
+        self.uc.reg_write(self.Emulator.GetReg(register_name), value)
 
     def WriteReg(self, register, value):
         self.uc.reg_write(register, value)
+
+    def DumpRegisters(self):
+        if self.Emulator.Arch == 'x86':
+            print('eax: %.8X ebx: %.8X ecx: %.8X edx: %.8X' % (
+                                self.uc.reg_read(UC_X86_REG_EAX), 
+                                self.uc.reg_read(UC_X86_REG_EBX), 
+                                self.uc.reg_read(UC_X86_REG_ECX), 
+                                self.uc.reg_read(UC_X86_REG_EDX)
+                            )
+                        )
+                            
+            print('esp: %.8X ebp: %.8X esi: %.8X edi: %.8X' % (
+                                self.uc.reg_read(UC_X86_REG_ESP), 
+                                self.uc.reg_read(UC_X86_REG_EBP), 
+                                self.uc.reg_read(UC_X86_REG_ESI), 
+                                self.uc.reg_read(UC_X86_REG_EDI)
+                            )
+                        )
+                            
+            print('eip: %.8X' % (
+                                self.uc.reg_read(UC_X86_REG_EIP)
+                            )
+                        )
+        elif self.Emulator.Arch == 'AMD64':
+            print('rax: %.8X ebx: %.8X ecx: %.8X edx: %.8X' % (
+                                self.uc.reg_read(UC_X86_REG_RAX), 
+                                self.uc.reg_read(UC_X86_REG_RBX), 
+                                self.uc.reg_read(UC_X86_REG_RCX), 
+                                self.uc.reg_read(UC_X86_REG_RDX)
+                            )
+                        )
+                            
+            print('rsp: %.8X rbp: %.8X rsi: %.8X rdi: %.8X' % (
+                                self.uc.reg_read(UC_X86_REG_RSP), 
+                                self.uc.reg_read(UC_X86_REG_RBP), 
+                                self.uc.reg_read(UC_X86_REG_RSI), 
+                                self.uc.reg_read(UC_X86_REG_RDI)
+                            )
+                        )
+                            
+            print('rip: %.8X' % (
+                                self.uc.reg_read(UC_X86_REG_RIP)
+                            )
+                        )
+
+        print(' fs: %.8X gs: %.8X cs: %.8X  ds: %.8X  es: %.8X' % (
+                            self.uc.reg_read(UC_X86_REG_FS), 
+                            self.uc.reg_read(UC_X86_REG_GS), 
+                            self.uc.reg_read(UC_X86_REG_CS), 
+                            self.uc.reg_read(UC_X86_REG_DS), 
+                            self.uc.reg_read(UC_X86_REG_ES)
+                        )
+                    )

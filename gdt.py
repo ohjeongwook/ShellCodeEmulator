@@ -54,33 +54,41 @@ class Layout:
         to_ret |= idx << 3
         return to_ret
 
-    def Setup(self, gdt_addr = 0x80043000, gdt_limit = 0x1000, gdt_entry_size = 0x8, fs_base = 0x0f4c000, fs_limit = 0x00001000):
+    def Setup(self, 
+                gdt_addr = 0x80043000, 
+                gdt_limit = 0x1000, 
+                gdt_entry_size = 0x8, 
+                fs_base = None, 
+                fs_limit = None, 
+                gs_base = None, 
+                gs_limit = None, 
+                segment_limit = 0xffffffff
+        ):
         self.UC.Memory.Map(gdt_addr, gdt_limit)
         gdt = [self.CreateGDTEntry(0,0,0,0) for i in range(0x34)]
-        gdt[0x0e] = self.CreateGDTEntry(fs_base, fs_limit , A_PRESENT | A_DATA | A_DATA_WRITABLE | A_PRIV_0 | A_DIR_CON_BIT, F_PROT_32)
-        gdt[0x0f] = self.CreateGDTEntry(0, 0xffffffff, A_PRESENT | A_DATA | A_DATA_WRITABLE | A_PRIV_3 | A_DIR_CON_BIT, F_PROT_32)
-        gdt[0x10] = self.CreateGDTEntry(0, 0xffffffff, A_PRESENT | A_DATA | A_DATA_WRITABLE | A_PRIV_3 | A_DIR_CON_BIT, F_PROT_32)  # Data Segment
-        gdt[0x11] = self.CreateGDTEntry(0, 0xffffffff, A_PRESENT | A_CODE | A_CODE_READABLE | A_PRIV_3 | A_EXEC | A_DIR_CON_BIT, F_PROT_32)  # Code Segment
-        gdt[0x12] = self.CreateGDTEntry(0, 0xffffffff, A_PRESENT | A_DATA | A_DATA_WRITABLE | A_PRIV_0 | A_DIR_CON_BIT, F_PROT_32)  # Stack Segment
-        gdt[0x6] = self.CreateGDTEntry(0, 0xffffffff, A_PRESENT | A_CODE | A_CODE_READABLE | A_PRIV_3 | A_EXEC | A_DIR_CON_BIT, F_PROT_32)  # Code Segment
+        
+        if fs_base != None and fs_limit != None:
+            gdt[0x0e] = self.CreateGDTEntry(fs_base, fs_limit , A_PRESENT | A_DATA | A_DATA_WRITABLE | A_PRIV_0 | A_DIR_CON_BIT, F_PROT_32)
+        else:
+            gdt[0x0e] = self.CreateGDTEntry(0, segment_limit, A_PRESENT | A_DATA | A_DATA_WRITABLE | A_PRIV_3 | A_DIR_CON_BIT, F_PROT_32)
+
+        if gs_base != None and gs_limit != None:
+            gdt[0x0f] = self.CreateGDTEntry(gs_base, gs_limit, A_PRESENT | A_DATA | A_DATA_WRITABLE | A_PRIV_3 | A_DIR_CON_BIT, F_PROT_32)
+        else:
+            gdt[0x0f] = self.CreateGDTEntry(0, segment_limit, A_PRESENT | A_DATA | A_DATA_WRITABLE | A_PRIV_3 | A_DIR_CON_BIT, F_PROT_32)
+
+        gdt[0x10] = self.CreateGDTEntry(0, segment_limit, A_PRESENT | A_DATA | A_DATA_WRITABLE | A_PRIV_3 | A_DIR_CON_BIT, F_PROT_32)  # Data Segment
+        gdt[0x11] = self.CreateGDTEntry(0, segment_limit, A_PRESENT | A_CODE | A_CODE_READABLE | A_PRIV_3 | A_EXEC | A_DIR_CON_BIT, F_PROT_32)  # Code Segment
+        gdt[0x12] = self.CreateGDTEntry(0, segment_limit, A_PRESENT | A_DATA | A_DATA_WRITABLE | A_PRIV_0 | A_DIR_CON_BIT, F_PROT_32)  # Stack Segment
+        gdt[0x6] = self.CreateGDTEntry(0, segment_limit, A_PRESENT | A_CODE | A_CODE_READABLE | A_PRIV_3 | A_EXEC | A_DIR_CON_BIT, F_PROT_32)  # Code Segment
 
         for idx, value in enumerate(gdt):
             offset = idx * gdt_entry_size
             self.UC.Memory.WriteMem(gdt_addr + offset, value)
         
         self.UC.Register.WriteReg(UC_X86_REG_GDTR, (0, gdt_addr, len(gdt) * gdt_entry_size-1, 0x0))
-
-        selector = self.CreateSelector(0x0e, S_GDT | S_PRIV_0)
-        self.UC.Register.WriteReg(UC_X86_REG_FS, selector)
-
-        selector = self.CreateSelector(0x0f, S_GDT | S_PRIV_3)
-        self.UC.Register.WriteReg(UC_X86_REG_GS, selector)
-
-        selector = self.CreateSelector(0x10, S_GDT | S_PRIV_3)
-        self.UC.Register.WriteReg(UC_X86_REG_DS, selector)
-
-        selector = self.CreateSelector(0x11, S_GDT | S_PRIV_3)
-        self.UC.Register.WriteReg(UC_X86_REG_CS, selector)
-
-        selector = self.CreateSelector(0x12, S_GDT | S_PRIV_0)
-        self.UC.Register.WriteReg(UC_X86_REG_SS, selector)
+        self.UC.Register.WriteReg(UC_X86_REG_FS, self.CreateSelector(0x0e, S_GDT | S_PRIV_0))
+        self.UC.Register.WriteReg(UC_X86_REG_GS, self.CreateSelector(0x0f, S_GDT | S_PRIV_3))
+        self.UC.Register.WriteReg(UC_X86_REG_DS, self.CreateSelector(0x10, S_GDT | S_PRIV_3))
+        self.UC.Register.WriteReg(UC_X86_REG_CS, self.CreateSelector(0x11, S_GDT | S_PRIV_3))
+        self.UC.Register.WriteReg(UC_X86_REG_SS, self.CreateSelector(0x12, S_GDT | S_PRIV_0))
