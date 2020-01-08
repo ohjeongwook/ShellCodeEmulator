@@ -15,6 +15,8 @@ setuptools.setup(
     packages=setuptools.find_packages(),
     install_requires=[
         'unicorn',
+        'capstone',
+        'pykd',
         'windbgtool-ohjeongwook @ git+https://github.com/ohjeongwook/windbgtool@v1.0#egg=windbgtool-ohjeongwook',
         'idatool-ohjeongwook @ git+https://github.com/ohjeongwook/idatool@v1.0#egg=idatool-ohjeongwook',
     ],
