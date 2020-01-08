@@ -1,6 +1,6 @@
 # Windows shellcode emulation tool based upon [unicorn framework](https://www.unicorn-engine.org/).
 
-ShellcodeEmulator emulates shellcode with the help of windbg process memory dumps. You can provide process memory dump as a input with shellcode to analyze, it will emulate as much as the userland layer just above kernel calls. You can add your custom syscall handlers or any handlers in between the API calls used by shellcode and the kernel layer.
+ShellcodeEmulator emulates Windows shellcode with the help of windbg process memory dumps. You can provide shellcode to analyze with any Windows process dump image and it will emulate as much as the userland code using the provided dump image. You can add your custom syscall handlers or any handlers in between the API calls used by shellcode and the kernel layer. This can provide full view of the user stack and also let you handle shellcode that are bypassing existing shellcode harnesses by calling syscalls directly.
 
 ## Installation
 
