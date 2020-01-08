@@ -1,32 +1,8 @@
-## Prerequisites
+# Windows shellcode emulation tool based upon [unicorn framework](https://www.unicorn-engine.org/).
 
-* Add pip folder to PATH
+ShellcodeEmulator emulates shellcode with the help of windbg process memory dumps. You can provide process memory dump as a input with shellcode to analyze, it will emulate as much as the userland layer just above kernel calls. You can add your custom syscall handlers or any handlers in between the API calls used by shellcode and the kernel layer.
 
-```
-set PATH=c:\python27-x64;c:\python27-x64\Scripts;%LOCALAPPDATA%\Programs\Python\Python37;%LOCALAPPDATA%\Programs\Python\Python37\Scripts;%PATH%
-```
-
-```
-pip install unicorn
-pip install git+https://github.com/ohjeongwook/windbgtool
-pip install git+https://github.com/ohjeongwook/idatool
-```
-
-### Upgrade existing tools
-
-```
-pip install unicorn --upgrade
-pip install git+https://github.com/ohjeongwook/windbgtool --upgrade
-pip install git+https://github.com/ohjeongwook/idatool --upgrade
-```
-
-## Installing ShellcodeEmulator
-
-```
-pip install git+https://github.com/ohjeongwook/ShellcodeEmulator
-```
-
-* Upgrading existing ShellcodeEmulator
+## Installation
 
 ```
 pip install git+https://github.com/ohjeongwook/ShellcodeEmulator --upgrade
