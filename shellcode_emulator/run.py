@@ -160,15 +160,19 @@ if __name__ == '__main__':
     
     (options, args) = parser.parse_args(sys.argv)
 
+    if len(args) < 2:
+        parser.print_help()
+        sys.exit(0)
+
     shellcode_filename = args[1]
 
     shellcode_bytes = ''
     if options.list_filename:
-        parser = idatool.list.Parser(options.list_filename)
-        parser.Parse()
+        list_parser = idatool.list.Parser(options.list_filename)
+        list_parser.Parse()
         shellcode_bytes = ''
-        for name in parser.GetNames():
-            shellcode_bytes += parser.GetBytes(name)
+        for name in list_parser.GetNames():
+            shellcode_bytes += list_parser.GetBytes(name)
 
     shell_emu = ShellEmu(shellcode_filename, shellcode_bytes = shellcode_bytes, dump_filename = options.dump_filename)
     shell_emu.Run(trace_self_modification = True, print_first_instructions = True)
