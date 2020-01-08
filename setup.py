@@ -13,6 +13,13 @@ setuptools.setup(
     long_description_content_type="text/markdown",
     url="https://github.com/ohjeongwook/ShellCodeEmulator",
     packages=setuptools.find_packages(),
+    install_requires=[
+        'unicorn',
+    ],
+    dependency_links=[
+        'https://github.com/ohjeongwook/windbgtool/tarball/master#egg=package-1.0',
+        'https://github.com/ohjeongwook/idatool/tarball/master#egg=package-1.0',
+    ],
     classifiers=[
         "Programming Language :: Python :: 2",
         "License :: OSI Approved :: MIT License",
