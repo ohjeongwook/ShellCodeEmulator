@@ -15,10 +15,8 @@ setuptools.setup(
     packages=setuptools.find_packages(),
     install_requires=[
         'unicorn',
-    ],
-    dependency_links=[
-        'https://github.com/ohjeongwook/windbgtool/tarball/master#egg=package-1.0',
-        'https://github.com/ohjeongwook/idatool/tarball/master#egg=package-1.0',
+        'windbgtool-ohjeongwook @ git+ssh://git@github.com/ohjeongwook/windbgtool@v1.1#egg=windbgtool-ohjeongwook',
+        'windbgtool-ohjeongwook @ git+ssh://git@github.com/ohjeongwook/idatool@v1.1#egg=idatool-ohjeongwook',
     ],
     classifiers=[
         "Programming Language :: Python :: 2",
