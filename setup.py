@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="shellcodeemulator-ohjeongwook",
-    version="0.0.1",
+    version="1.0",
     author="Matt Oh",
     author_email="jeongoh@darungrim.com",
     description="IDA Tool",
@@ -15,8 +15,8 @@ setuptools.setup(
     packages=setuptools.find_packages(),
     install_requires=[
         'unicorn',
-        'windbgtool-ohjeongwook @ git+https://github.com/ohjeongwook/windbgtool@v1.1#egg=windbgtool-ohjeongwook',
-        'windbgtool-ohjeongwook @ git+https://github.com/ohjeongwook/idatool@v1.1#egg=idatool-ohjeongwook',
+        'windbgtool-ohjeongwook @ git+https://github.com/ohjeongwook/windbgtool@v1.0#egg=windbgtool-ohjeongwook',
+        'windbgtool-ohjeongwook @ git+https://github.com/ohjeongwook/idatool@v1.0#egg=idatool-ohjeongwook',
     ],
     classifiers=[
         "Programming Language :: Python :: 2",
