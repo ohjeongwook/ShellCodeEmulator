@@ -20,11 +20,11 @@ try:
 except:
     pass
 
-import pe
-import memory
-import instruction
-import register
-import api
+import shellcode_emulator.pe
+import shellcode_emulator.memory
+import shellcode_emulator.instruction
+import shellcode_emulator.register
+import shellcode_emulator.api
 
 logger = logging.getLogger(__name__)
 

@@ -9,7 +9,7 @@ import capstone
 from unicorn import *
 from unicorn.x86_const import *
 
-import utils
+import shellcode_emulator.utils
 
 class Tool:
     def __init__(self, emulator):

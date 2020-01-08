@@ -5,7 +5,7 @@ import traceback
 from unicorn import *
 from unicorn.x86_const import *
 
-import utils
+import shellcode_emulator.utils
 
 logger = logging.getLogger(__name__)
 
