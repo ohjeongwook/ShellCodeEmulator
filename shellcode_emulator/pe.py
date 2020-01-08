@@ -3,7 +3,7 @@ import struct
 import logging
 import traceback
 
-import gdt
+import shellcode_emulator.gdt
 
 upack32 = lambda x: struct.unpack('I', x)[0]
 pack32 = lambda x: struct.pack('I', x)
