@@ -16,7 +16,7 @@ setuptools.setup(
     install_requires=[
         'unicorn',
         'windbgtool-ohjeongwook @ git+https://github.com/ohjeongwook/windbgtool@v1.0#egg=windbgtool-ohjeongwook',
-        'windbgtool-ohjeongwook @ git+https://github.com/ohjeongwook/idatool@v1.0#egg=idatool-ohjeongwook',
+        'idatool-ohjeongwook @ git+https://github.com/ohjeongwook/idatool@v1.0#egg=idatool-ohjeongwook',
     ],
     classifiers=[
         "Programming Language :: Python :: 2",
