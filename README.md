@@ -2,7 +2,7 @@
 
 ShellcodeEmulator emulates Windows shellcode with the help of windbg process memory dumps. You can provide shellcode to analyze with any Windows process dump image. The tool will emulate as much as of the userland code using the shellcode bytes and the provided dump image.
 
-You can add your custom syscall handlers or any handlers in between the API calls used by shellcode and the kernel layer. This can provide full view of the user stack and also let you handle shellcode bypasses existing shellcode harnesses, for example by calling syscalls directly.
+You can add your custom syscall handlers or any handlers in between the API calls used by shellcode and the kernel layer. This can provide full view of the user stack. It will let you investigate shellcode that bypasses loose API  hooks in higher callstack level.
 
 ## Installation
 
