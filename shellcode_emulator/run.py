@@ -4,7 +4,6 @@ import sys
 import struct
 import traceback
 import logging
-import sqlite3
 
 from unicorn import *
 from unicorn.x86_const import *
@@ -69,16 +68,6 @@ class Emulator:
 
     def Start(self, start, end):
         self.uc.emu_start(start, end)
-
-class ExecutionLogger:
-    def __init__(self):        
-        self.Conn = sqlite3.connect("Emulator.db", check_same_thread = False)
-        self.Cursor = self.Conn.cursor()
-        self.Cursor.execute('''CREATE TABLE CodeExecution (address int)''') 
-
-    def LogAddress(self, address):
-        self.Cursor.execute("INSERT INTO CodeExecution VALUES (%d)" % address)
-        self.Conn.commit()
 
 class ShellEmu:
     def __init__(self, shellcode_filename, shellcode_bytes = '', dump_filename = ''):
