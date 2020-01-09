@@ -3,3 +3,6 @@
 *.db
 *.idb
 Tmp/*
+build/
+shellcodeemulator_ohjeongwook.egg-info/
+dist/
