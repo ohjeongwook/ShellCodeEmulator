@@ -13,7 +13,7 @@ import capstone
 import pykd
 
 import windbgtool.debugger
-import util.common
+import windbgtool.util
 
 try:
     import idatool.list
