@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# pylint: unused-wildcard-import
+# pylint: disable=unused-wildcard-import
 
 import sys
 import struct

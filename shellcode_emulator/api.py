@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# pylint: unused-wildcard-import
+# pylint: disable=unused-wildcard-import
 
 import sys
 import logging
@@ -172,7 +172,7 @@ class Hook:
                 logger.debug('%.8X: %s\t%s\t%s' % 
                                 (
                                     a.address, 
-                                    utils.Tool.DumpHex(code[offset:offset+a.size]), 
+                                    shellcode_emulator.utils.Tool.DumpHex(code[offset:offset+a.size]), 
                                     a.mnemonic, a.op_str
                                 )
                             )

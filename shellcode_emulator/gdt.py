@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# pylint: unused-wildcard-import
+# pylint: disable=unused-wildcard-import
 
 from unicorn import *
 from unicorn.x86_const import *
@@ -43,12 +43,12 @@ class Layout:
         self.UC = uc
 
     def create_gdt_entry(self, base, limit, access, flags):
-        to_ret = limit & 0xffff;
-        to_ret |= (base & 0xffffff) << 16;
-        to_ret |= (access & 0xff) << 40;
-        to_ret |= ((limit >> 16) & 0xf) << 48;
-        to_ret |= (flags & 0xff) << 52;
-        to_ret |= ((base >> 24) & 0xff) << 56;
+        to_ret = limit & 0xffff
+        to_ret |= (base & 0xffffff) << 16
+        to_ret |= (access & 0xff) << 40
+        to_ret |= ((limit >> 16) & 0xf) << 48
+        to_ret |= (flags & 0xff) << 52
+        to_ret |= ((base >> 24) & 0xff) << 56
         return pack('<Q',to_ret)
 
     def create_selector(self, idx, flags):
