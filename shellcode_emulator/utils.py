@@ -3,7 +3,7 @@
 
 class Tool:
     @staticmethod
-    def DumpHex(bytes):
+    def dump_hex(bytes):
         line = ''
         count = 0
         for ch in bytes:

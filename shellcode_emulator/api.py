@@ -172,7 +172,7 @@ class Hook:
                 logger.debug('%.8X: %s\t%s\t%s' % 
                                 (
                                     a.address, 
-                                    shellcode_emulator.utils.Tool.DumpHex(code[offset:offset+a.size]), 
+                                    shellcode_emulator.utils.Tool.dump_hex(code[offset:offset+a.size]), 
                                     a.mnemonic, a.op_str
                                 )
                             )

@@ -63,7 +63,7 @@ class Tool:
             else:
                 address_str = ' %.8X: ' % (instruction.address)
 
-            print('%s%s%s\t%s\t%s' % (symbol_str, address_str, shellcode_emulator.utils.Tool.DumpHex(code[offset:offset+instruction.size]), instruction.mnemonic, instruction.op_str))
+            print('%s%s%s\t%s\t%s' % (symbol_str, address_str, shellcode_emulator.utils.Tool.dump_hex(code[offset:offset+instruction.size]), instruction.mnemonic, instruction.op_str))
 
             offset += instruction.size
             i += 1
