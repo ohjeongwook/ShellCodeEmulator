@@ -6,11 +6,15 @@ You can add your custom syscall handlers or any handlers in between the API call
 
 ## Installation
 
+1. Install [WinDbg](https://docs.microsoft.com/en-us/windows-hardware/drivers/debugger/)
+
+2. Install ShellcodeEmulator
+
 ```
 pip install git+https://github.com/ohjeongwook/ShellcodeEmulator --upgrade
 ```
 
-* Please run following command if you experience any PyKD/WinDbg integration issues
+3. Please run following command if you experience any PyKD/WinDbg integration issues
    * PyKD has some issues with DLL package distribution.
 
 ```
