@@ -10,7 +10,12 @@ You can add your custom syscall handlers or any handlers in between the API call
 pip install git+https://github.com/ohjeongwook/ShellcodeEmulator --upgrade
 ```
 
-* Please run [install_windbg_files.py](https://github.com/ohjeongwook/windbgtool/blob/master/installation/install_windbg_files.py) if you experience any PyKD/WinDbg integration issues
+* Please run following command if you experience any PyKD/WinDbg integration issues
+   * PyKD has some issues with DLL package distribution.
+
+```
+python -m pykdfix.fix_windbg_files
+```
 
 ## Usage
 
