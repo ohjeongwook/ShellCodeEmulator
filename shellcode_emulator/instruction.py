@@ -1,3 +1,6 @@
+#!/usr/bin/env python
+# pylint: unused-wildcard-import
+
 import os
 import sys
 
@@ -20,22 +23,22 @@ class Tool:
         self.Start = 0
         self.End = 0
 
-    def SetCodeRange(self, start, end):
+    def set_code_range(self, start, end):
         self.Start = start
         self.End = end
 
-    def Disassemble(self, code, address):
+    def disassemble(self, code, address):
         if self.Emulator.Arch == 'x86':
             md = capstone.Cs(capstone.CS_ARCH_X86, capstone.CS_MODE_32)
         elif self.Emulator.Arch == 'AMD64':
             md = capstone.Cs(capstone.CS_ARCH_X86, capstone.CS_MODE_64)
         return md.disasm(code, address)
 
-    def DumpDisasm(self, address, size, resolve_symbol = False, dump_instruction_count = 1):
+    def dump_disassembly(self, address, size, resolve_symbol = False, dump_instruction_count = 1):
         code = self.uc.mem_read(address, size)
 
         try:            
-            disasm_list = self.Disassemble(code, address)
+            disasm_list = self.disassemble(code, address)
         except:
             traceback.print_exc(file = sys.stdout)
             return
@@ -68,12 +71,12 @@ class Tool:
             if i >= dump_instruction_count:
                 break
 
-    def DumpContext(self, dump_registers = True, dump_previous_eip = False):
-        self.DumpDisasm(self.uc.reg_read(self.Emulator.GetReg("eip")), 10)
+    def dump_context(self, dump_registers = True, dump_previous_eip = False):
+        self.dump_disassembly(self.uc.reg_read(self.Emulator.get_register_by_name("eip")), 10)
 
         if dump_registers:
-            self.Emulator.Register.DumpRegisters()
+            self.Emulator.Register.print_registers()
 
         if dump_previous_eip and self.LastCodeAddress>0:
             print('> Last EIP before this instruction:')
-            self.DumpDisasm(self.LastCodeAddress, self.LastCodeSize)
+            self.dump_disassembly(self.LastCodeAddress, self.LastCodeSize)

@@ -1,4 +1,6 @@
 #!/usr/bin/env python
+# pylint: unused-wildcard-import
+
 from unicorn import *
 from unicorn.x86_const import *
 from struct import pack
@@ -40,7 +42,7 @@ class Layout:
     def __init__(self, uc):
         self.UC = uc
 
-    def CreateGDTEntry(self, base, limit, access, flags):
+    def create_gdt_entry(self, base, limit, access, flags):
         to_ret = limit & 0xffff;
         to_ret |= (base & 0xffffff) << 16;
         to_ret |= (access & 0xff) << 40;
@@ -49,12 +51,12 @@ class Layout:
         to_ret |= ((base >> 24) & 0xff) << 56;
         return pack('<Q',to_ret)
 
-    def CreateSelector(self, idx, flags):
+    def create_selector(self, idx, flags):
         to_ret = flags
         to_ret |= idx << 3
         return to_ret
 
-    def Setup(self, 
+    def setup(self, 
                 gdt_addr = 0x80043000, 
                 gdt_limit = 0x1000, 
                 gdt_entry_size = 0x8, 
@@ -64,31 +66,31 @@ class Layout:
                 gs_limit = None, 
                 segment_limit = 0xffffffff
         ):
-        self.UC.Memory.Map(gdt_addr, gdt_limit)
-        gdt = [self.CreateGDTEntry(0,0,0,0) for i in range(0x34)]
+        self.UC.Memory.map(gdt_addr, gdt_limit)
+        gdt = [self.create_gdt_entry(0,0,0,0) for i in range(0x34)]
         
         if fs_base != None and fs_limit != None:
-            gdt[0x0e] = self.CreateGDTEntry(fs_base, fs_limit , A_PRESENT | A_DATA | A_DATA_WRITABLE | A_PRIV_0 | A_DIR_CON_BIT, F_PROT_32)
+            gdt[0x0e] = self.create_gdt_entry(fs_base, fs_limit , A_PRESENT | A_DATA | A_DATA_WRITABLE | A_PRIV_0 | A_DIR_CON_BIT, F_PROT_32)
         else:
-            gdt[0x0e] = self.CreateGDTEntry(0, segment_limit, A_PRESENT | A_DATA | A_DATA_WRITABLE | A_PRIV_3 | A_DIR_CON_BIT, F_PROT_32)
+            gdt[0x0e] = self.create_gdt_entry(0, segment_limit, A_PRESENT | A_DATA | A_DATA_WRITABLE | A_PRIV_3 | A_DIR_CON_BIT, F_PROT_32)
 
         if gs_base != None and gs_limit != None:
-            gdt[0x0f] = self.CreateGDTEntry(gs_base, gs_limit, A_PRESENT | A_DATA | A_DATA_WRITABLE | A_PRIV_3 | A_DIR_CON_BIT, F_PROT_32)
+            gdt[0x0f] = self.create_gdt_entry(gs_base, gs_limit, A_PRESENT | A_DATA | A_DATA_WRITABLE | A_PRIV_3 | A_DIR_CON_BIT, F_PROT_32)
         else:
-            gdt[0x0f] = self.CreateGDTEntry(0, segment_limit, A_PRESENT | A_DATA | A_DATA_WRITABLE | A_PRIV_3 | A_DIR_CON_BIT, F_PROT_32)
+            gdt[0x0f] = self.create_gdt_entry(0, segment_limit, A_PRESENT | A_DATA | A_DATA_WRITABLE | A_PRIV_3 | A_DIR_CON_BIT, F_PROT_32)
 
-        gdt[0x10] = self.CreateGDTEntry(0, segment_limit, A_PRESENT | A_DATA | A_DATA_WRITABLE | A_PRIV_3 | A_DIR_CON_BIT, F_PROT_32)  # Data Segment
-        gdt[0x11] = self.CreateGDTEntry(0, segment_limit, A_PRESENT | A_CODE | A_CODE_READABLE | A_PRIV_3 | A_EXEC | A_DIR_CON_BIT, F_PROT_32)  # Code Segment
-        gdt[0x12] = self.CreateGDTEntry(0, segment_limit, A_PRESENT | A_DATA | A_DATA_WRITABLE | A_PRIV_0 | A_DIR_CON_BIT, F_PROT_32)  # Stack Segment
-        gdt[0x6] = self.CreateGDTEntry(0, segment_limit, A_PRESENT | A_CODE | A_CODE_READABLE | A_PRIV_3 | A_EXEC | A_DIR_CON_BIT, F_PROT_32)  # Code Segment
+        gdt[0x10] = self.create_gdt_entry(0, segment_limit, A_PRESENT | A_DATA | A_DATA_WRITABLE | A_PRIV_3 | A_DIR_CON_BIT, F_PROT_32)  # Data Segment
+        gdt[0x11] = self.create_gdt_entry(0, segment_limit, A_PRESENT | A_CODE | A_CODE_READABLE | A_PRIV_3 | A_EXEC | A_DIR_CON_BIT, F_PROT_32)  # Code Segment
+        gdt[0x12] = self.create_gdt_entry(0, segment_limit, A_PRESENT | A_DATA | A_DATA_WRITABLE | A_PRIV_0 | A_DIR_CON_BIT, F_PROT_32)  # Stack Segment
+        gdt[0x6] = self.create_gdt_entry(0, segment_limit, A_PRESENT | A_CODE | A_CODE_READABLE | A_PRIV_3 | A_EXEC | A_DIR_CON_BIT, F_PROT_32)  # Code Segment
 
         for idx, value in enumerate(gdt):
             offset = idx * gdt_entry_size
-            self.UC.Memory.WriteMem(gdt_addr + offset, value)
+            self.UC.Memory.write_memory(gdt_addr + offset, value)
         
-        self.UC.Register.WriteReg(UC_X86_REG_GDTR, (0, gdt_addr, len(gdt) * gdt_entry_size-1, 0x0))
-        self.UC.Register.WriteReg(UC_X86_REG_FS, self.CreateSelector(0x0e, S_GDT | S_PRIV_0))
-        self.UC.Register.WriteReg(UC_X86_REG_GS, self.CreateSelector(0x0f, S_GDT | S_PRIV_3))
-        self.UC.Register.WriteReg(UC_X86_REG_DS, self.CreateSelector(0x10, S_GDT | S_PRIV_3))
-        self.UC.Register.WriteReg(UC_X86_REG_CS, self.CreateSelector(0x11, S_GDT | S_PRIV_3))
-        self.UC.Register.WriteReg(UC_X86_REG_SS, self.CreateSelector(0x12, S_GDT | S_PRIV_0))
+        self.UC.Register.write_register(UC_X86_REG_GDTR, (0, gdt_addr, len(gdt) * gdt_entry_size-1, 0x0))
+        self.UC.Register.write_register(UC_X86_REG_FS, self.create_selector(0x0e, S_GDT | S_PRIV_0))
+        self.UC.Register.write_register(UC_X86_REG_GS, self.create_selector(0x0f, S_GDT | S_PRIV_3))
+        self.UC.Register.write_register(UC_X86_REG_DS, self.create_selector(0x10, S_GDT | S_PRIV_3))
+        self.UC.Register.write_register(UC_X86_REG_CS, self.create_selector(0x11, S_GDT | S_PRIV_3))
+        self.UC.Register.write_register(UC_X86_REG_SS, self.create_selector(0x12, S_GDT | S_PRIV_0))

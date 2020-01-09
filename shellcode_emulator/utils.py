@@ -1,3 +1,6 @@
+#!/usr/bin/env python
+# pylint: unused-wildcard-import
+
 class Tool:
     @staticmethod
     def DumpHex(bytes):

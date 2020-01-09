@@ -1,3 +1,6 @@
+#!/usr/bin/env python
+# pylint: unused-wildcard-import
+
 import sys
 import struct
 import traceback
@@ -13,7 +16,7 @@ class Tool:
         self.Emulator = emulator
         self.uc = emulator.uc
 
-    def ReadString(self, address): 
+    def read_string(self, address): 
         null_found = False
         ret = ''
         offset = 0
@@ -32,12 +35,12 @@ class Tool:
             
         return ret
 
-    def GetStack(self, arg_count):
-        esp = self.uc.reg_read(self.Emulator.GetReg("esp"))
+    def get_stack(self, arg_count):
+        esp = self.uc.reg_read(self.Emulator.get_register_by_name("esp"))
         ret = struct.unpack("<"+"L"*(arg_count+1), self.uc.mem_read(esp, 4*(1+arg_count)))    
         return ret
 
-    def ReadUnicodeString(self, address):
+    def read_unicode_string(self, address):
         (length, maximum_length, buffer) = struct.unpack("<HHL", self.uc.mem_read(address, 8))
         pwstr = self.uc.mem_read(buffer, length)
         
@@ -46,17 +49,17 @@ class Tool:
             ret += chr(pwstr[i])
         return ret
 
-    def WriteUintMem(self, ptr, data):
-        return self.WriteMem(ptr, struct.pack("<L", data))
+    def write_uint_value(self, ptr, data):
+        return self.write_memory(ptr, struct.pack("<L", data))
         
-    def WriteMem(self, address, data, debug = 1):
+    def write_memory(self, address, data, debug = 1):
         try:
             self.uc.mem_write(address, data)
         except:
             logger.error('* Error in writing memory: %.8x (size: %.8x)' % (address, len(data)))
             traceback.print_exc(file = sys.stdout)
 
-    def Map(self, base, size):        
+    def map(self, base, size):        
         while base<0x100000000:
             try:
                 self.uc.mem_map(base, size)
@@ -67,7 +70,7 @@ class Tool:
             
         return base
 
-    def ReadMemoryFile(self, filename, base, size = 0, fixed_allocation = False):
+    def import_memory_from_file(self, filename, base, size = 0, fixed_allocation = False):
         with open(filename, 'rb') as fd:
             if size>0:
                 data = fd.read(size)
@@ -85,29 +88,29 @@ class Tool:
                 logger.error('* Error in memory mapping: %.8x (size: %.8x)' % (base, len(data)))
                 traceback.print_exc(file = sys.stdout)
         else:
-            base = self.Map(base, size)
+            base = self.map(base, size)
 
-        logger.debug(' > WriteMem(base = %.8x, size = %.8x)' % (base, len(data)))
-        self.WriteMem(base, data, debug = 0)
+        logger.debug(' > write_memory(base = %.8x, size = %.8x)' % (base, len(data)))
+        self.write_memory(base, data, debug = 0)
         return (base, size)
 
-    def MemoryWriteCallback(self, uc, access, address, size, value, user_data):
+    def memory_write_callback(self, uc, access, address, size, value, user_data):
         if access == UC_MEM_WRITE:
-            eip = uc.reg_read(self.Emulator.GetReg("eip"))
+            eip = uc.reg_read(self.Emulator.get_register_by_name("eip"))
             logger.debug("* %.8x: Memory Write 0x%.8x (Size:%.8u) <-- 0x%.8x" %(eip - self.CodeStart, address, size, value))
-            self.Emulator.Instruction.DumpContext()
+            self.Emulator.Instruction.dump_context()
 
-    def HookMemoryWrite(self, start, end):
-        self.Emulator.AddHook(
+    def hook_memory_write(self, start, end):
+        self.Emulator.add_unicorn_hook(
                     UC_HOOK_MEM_WRITE, 
-                    self.MemoryWriteCallback, 
+                    self.memory_write_callback, 
                     None, 
                     start, 
                     end
                 )
 
-    def MemoryAccessCallback(self, uc, access, address, size, value, user_data):
-        eip = uc.reg_read(self.Emulator.GetReg("eip"))
+    def memory_access_callback(self, uc, access, address, size, value, user_data):
+        eip = uc.reg_read(self.Emulator.get_register_by_name("eip"))
         if access == UC_MEM_WRITE:
             logger.info("* %.8x: Memory Write 0x%.8x (Size:%.8u) <-- 0x%.8x" %
                             (
@@ -134,12 +137,12 @@ class Tool:
                                 value
                             )
                         )
-            self.Emulator.Instruction.DumpContext()
+            self.Emulator.Instruction.dump_context()
 
-    def HookMemoryAccess(self, start, end):
-        self.Emulator.AddHook(UC_HOOK_MEM_READ | UC_HOOK_MEM_WRITE, self.MemoryAccessCallback, start, end)                
+    def hook_memory_access(self, start, end):
+        self.Emulator.add_unicorn_hook(UC_HOOK_MEM_READ | UC_HOOK_MEM_WRITE, self.memory_access_callback, start, end)                
 
-    def UnmappedMemoryAccessCallback(self, uc, access, address, size, value, user_data):
+    def unmapped_memory_access_callback(self, uc, access, address, size, value, user_data):
         if access == UC_MEM_WRITE_UNMAPPED:
             logger.info("* Memory Write Fail: 0x%.8x (Size:%u) --> 0x%.8x " % (value, size, address))
         elif access == UC_MEM_READ_UNMAPPED:
@@ -147,14 +150,14 @@ class Tool:
         elif access == UC_MEM_FETCH_UNMAPPED:
             logger.info("* Memory Fetch Fail: @0x%x (Size:%u)" % (address, size))
 
-        self.Emulator.Instruction.DumpContext()
-        print(hex(self.uc.reg_read(self.Emulator.GetReg("eip"))))
+        self.Emulator.Instruction.dump_context()
+        print(hex(self.uc.reg_read(self.Emulator.get_register_by_name("eip"))))
         return False
         
-    def HookUnmappedMemoryAccess(self):
+    def hook_unmapped_memory_access(self):
         self.uc.hook_add(
                     UC_HOOK_MEM_READ_UNMAPPED |
                     UC_HOOK_MEM_WRITE_UNMAPPED | 
                     UC_HOOK_MEM_FETCH_UNMAPPED, 
-                    self.UnmappedMemoryAccessCallback
+                    self.unmapped_memory_access_callback
                 )

@@ -1,3 +1,6 @@
+#!/usr/bin/env python
+# pylint: unused-wildcard-import
+
 import sys
 import struct
 import logging
@@ -20,16 +23,16 @@ class ProcessMemory:
         self.PebAddr = peb_addr
 
         if tib_bytes:
-            self.ParseTEB(tib_bytes)
+            self.parse_teb(tib_bytes)
         
-    def ParseTEB(self, tib_bytes):
+    def parse_teb(self, tib_bytes):
         unpacked_entries = struct.unpack('I'*13, tib_bytes[0:4*13])
         self.StackBase = unpacked_entries[1]
         self.StackLimit = unpacked_entries[2]
         self.TebAddr = unpacked_entries[11]
         self.PebAddr = unpacked_entries[12]
 
-    def InitLDR(self, FLoad, Bload, FMem, BMem, FInit, BInit, DllBase, EntryPoint, DllName, addrofnamedll):
+    def init_ldr(self, FLoad, Bload, FMem, BMem, FInit, BInit, DllBase, EntryPoint, DllName, addrofnamedll):
         # InOrder
         ldr = ''
         ldr += pack32(FLoad)  # flink
@@ -50,7 +53,7 @@ class ProcessMemory:
         ldr += pack32(addrofnamedll)  # 0x30
         return ldr
 
-    def InitTEB(seft, peb_address):
+    def init_teb(seft, peb_address):
         teb = ''
         teb += pack32(0x0) * 7
         teb += pack32(0x0)  # EnvironmentPointer
@@ -60,7 +63,7 @@ class ProcessMemory:
         teb += pack32(0x0)  # LastErrorValue
         return teb
 
-    def InitPEB(seft, image_base, peb_ldr_address):
+    def init_peb(seft, image_base, peb_ldr_address):
         peb = ''
         peb += pack32(0x0) * 2  # InheritedAddressSpace
         peb += pack32(image_base)  # imageBaseAddress
@@ -68,7 +71,7 @@ class ProcessMemory:
         peb += pack32(0x0)  # process parameter
         return peb
 
-    def InitPEBLDRData(self, ldr_address):
+    def init_peb_ldr_data(self, ldr_address):
         peb_ldr_data = ''
         peb_ldr_data += pack32(0x0) * 3  # 0x8
         peb_ldr_data += pack32(ldr_address)  # 0x0c
@@ -79,7 +82,7 @@ class ProcessMemory:
         peb_ldr_data += pack32(ldr_address + 0x14)
         return peb_ldr_data
 
-    def InitTEB(self):
+    def init_teb(self):
         fs_data = ''
         fs_data += pack32(0x0)  # 0x0
         fs_data += pack32(self.StackBase)  # 0x4
@@ -92,16 +95,16 @@ class ProcessMemory:
         fs_data += pack32(0x0)
         return fs_data
 
-    def SetupStack(self):
+    def setup_stack(self):
         self.StackSize = 0x1000
-        self.StackLimit = self.Emulator.Memory.Map(0x1000, self.StackSize)
+        self.StackLimit = self.Emulator.Memory.map(0x1000, self.StackSize)
         self.StackBase = self.StackLimit+self.StackSize
         logger.debug("* Setup stack at 0x%.8x ~ 0x%.8x" % (self.StackLimit, self.StackBase))
 
-        self.Emulator.Register.Write("esp", self.StackBase-0x100)
-        self.Emulator.Register.Write("esp", self.StackBase-0x100)
+        self.Emulator.Register.write("esp", self.StackBase-0x100)
+        self.Emulator.Register.write("esp", self.StackBase-0x100)
 
-    def LoadTib(self, tib_filename = 'tib.bin', fs_base = 0x0f4c000):
+    def load_tib(self, tib_filename = 'tib.bin', fs_base = 0x0f4c000):
         if self.Emulator.Debugger and not tib_filename:
             tib_filename = 'tib.dmp'
             self.Emulator.Debugger.RunCmd(".writemem %s fs:0 L?0x1000" % tib_filename)
@@ -109,17 +112,17 @@ class ProcessMemory:
         if tib_filename:
             with open(tib_filename, 'rb') as fd:
                 tib_bytes = fd.read()
-                self.ParseTEB(tib_bytes)
-                self.Emulator.Memory.WriteMem(fs_base, tib_bytes, debug = 0)
+                self.parse_teb(tib_bytes)
+                self.Emulator.Memory.write_memory(fs_base, tib_bytes, debug = 0)
                 logger.info("Writing TIB to 0x%.8x" % fs_base)
         else:
             self.TebAddr = 0
             self.PebAddr = 0
-            tib_bytes = self.InitTEB()
-            fs_base = self.Emulator.Memory.Map(fs_base, len(tib_bytes))
-            self.Emulator.Memory.WriteMem(fs_base, tib_bytes, debug = 0)
+            tib_bytes = self.init_teb()
+            fs_base = self.Emulator.Memory.map(fs_base, len(tib_bytes))
+            self.Emulator.Memory.write_memory(fs_base, tib_bytes, debug = 0)
 
-    def LoadProcessMemory(self):
+    def load_process_memory(self):
         self.Emulator.Debugger.SetSymbolPath()
         self.Emulator.Debugger.EnumerateModules()
         
@@ -148,8 +151,8 @@ class ProcessMemory:
                 
                 logger.debug('\tStack: 0x%.8x ~ 0x%.8x (0x%.8x)' % (self.StackLimit, self.StackBase, self.StackSize))
 
-                self.Emulator.Register.Write("esp", address['BaseAddr']+address['RgnSize']-0x1000)
-                self.Emulator.Register.Write("ebp", address['BaseAddr']+address['RgnSize']-0x1000)
+                self.Emulator.Register.write("esp", address['BaseAddr']+address['RgnSize']-0x1000)
+                self.Emulator.Register.write("ebp", address['BaseAddr']+address['RgnSize']-0x1000)
 
             if self.Emulator.Debugger:
                 tmp_dmp_filename = 'tmp.dmp'
@@ -159,12 +162,12 @@ class ProcessMemory:
                     logger.debug("* Writemem failed")
                     traceback.print_exc(file = sys.stdout)
 
-                self.Emulator.Memory.ReadMemoryFile(tmp_dmp_filename, address['BaseAddr'], size = address['RgnSize'], fixed_allocation = True)
+                self.Emulator.Memory.import_memory_from_file(tmp_dmp_filename, address['BaseAddr'], size = address['RgnSize'], fixed_allocation = True)
                 if address['Usage'] == 'TEB':
                     with open (tmp_dmp_filename, 'rb') as fd:
                         teb_bytes.append(fd.read())
             else:
-                self.Emulator.Memory.Map(address['BaseAddr'], address['RgnSize'])
+                self.Emulator.Memory.map(address['BaseAddr'], address['RgnSize'])
 
                 try:
                     bytes_list = self.Emulator.Debugger.GetBytes(address['BaseAddr'], address['RgnSize'])
@@ -177,17 +180,17 @@ class ProcessMemory:
                 for n in bytes_list:
                     bytes += chr(n)
 
-                self.Emulator.Memory.WriteMem(address['BaseAddr'], bytes)
+                self.Emulator.Memory.write_memory(address['BaseAddr'], bytes)
 
         if len(teb_list) > 0:
             gdt_layout = gdt.Layout(self.Emulator)
             if self.Emulator.Arch == 'x86':
                 segment_limit = 0xffffffff
                 logger.info("* Setting up fs: %x (len=%x)" % (teb_list[0]['BaseAddr'], teb_list[0]['RgnSize']))
-                gdt_layout.Setup(fs_base = teb_list[0]['BaseAddr'], fs_limit = teb_list[0]['RgnSize'], segment_limit = segment_limit)
+                gdt_layout.setup(fs_base = teb_list[0]['BaseAddr'], fs_limit = teb_list[0]['RgnSize'], segment_limit = segment_limit)
             elif self.Emulator.Arch == 'AMD64':
                 segment_limit = 0xffffffffffffffff
                 logger.info("* Setting up gs: %x (len=%x)" % (teb_list[0]['BaseAddr'], teb_list[0]['RgnSize']))
-                gdt_layout.Setup(gs_base = teb_list[0]['BaseAddr'], gs_limit = teb_list[0]['RgnSize'], segment_limit = segment_limit)
-                self.Emulator.Memory.Map(0, len(teb_bytes[0]))
-                self.Emulator.Memory.WriteMem(0, teb_bytes[0]) #64bit hack to map TEB to 0 ~ 
+                gdt_layout.setup(gs_base = teb_list[0]['BaseAddr'], gs_limit = teb_list[0]['RgnSize'], segment_limit = segment_limit)
+                self.Emulator.Memory.map(0, len(teb_bytes[0]))
+                self.Emulator.Memory.write_memory(0, teb_bytes[0]) #64bit hack to map TEB to 0 ~ 

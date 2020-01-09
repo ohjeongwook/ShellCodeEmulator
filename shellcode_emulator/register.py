@@ -1,3 +1,6 @@
+#!/usr/bin/env python
+# pylint: unused-wildcard-import
+
 import os
 import sys
 
@@ -14,13 +17,13 @@ class Tool:
         self.Emulator = emulator
         self.uc = emulator.uc
 
-    def Write(self, register_name, value):
-        self.uc.reg_write(self.Emulator.GetReg(register_name), value)
+    def write(self, register_name, value):
+        self.uc.reg_write(self.Emulator.get_register_by_name(register_name), value)
 
-    def WriteReg(self, register, value):
+    def write_register(self, register, value):
         self.uc.reg_write(register, value)
 
-    def DumpRegisters(self):
+    def print_registers(self):
         if self.Emulator.Arch == 'x86':
             print('eax: %.8X ebx: %.8X ecx: %.8X edx: %.8X' % (
                                 self.uc.reg_read(UC_X86_REG_EAX), 

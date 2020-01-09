@@ -1,3 +1,6 @@
+#!/usr/bin/env python
+# pylint: unused-wildcard-import
+
 import os
 import sys
 
@@ -41,7 +44,7 @@ class Emulator:
         self.Debugger = windbgtool.debugger.DbgEngine()
         self.Debugger.LoadDump(dump_filename)
 
-    def GetReg(self, register_name):
+    def get_register_by_name(self, register_name):
         if register_name == "esp":
             if self.Arch == 'x86':
                 return UC_X86_REG_ESP
@@ -63,10 +66,10 @@ class Emulator:
             elif self.Arch == 'AMD64':
                 return UC_X86_REG_RAX
 
-    def AddHook(self, hook_type, callback, arg = None, start = 0, end = 0):
+    def add_unicorn_hook(self, hook_type, callback, arg = None, start = 0, end = 0):
         self.uc.hook_add(hook_type, callback, arg, start, end)
 
-    def Start(self, start, end):
+    def start(self, start, end):
         self.uc.emu_start(start, end)
 
 class ShellEmu:
@@ -81,8 +84,8 @@ class ShellEmu:
 
         self.Emulator = Emulator(dump_filename = dump_filename)
 
-    def InstructionCallback(self, uc, address, size, user_data):
-        self.Emulator.Instruction.DumpContext()
+    def instruction_callback(self, uc, address, size, user_data):
+        self.Emulator.Instruction.dump_context()
 
         if not address in self.HitMap:
             self.HitMap[address] = 1
@@ -91,16 +94,16 @@ class ShellEmu:
             
             if self.HitMap[address] % self.ExhaustiveLoopDumpFrequency == 0:
                 print('Exhaustive Loop found: %x' % (self.HitMap[address]))
-                self.Emulator.Instruction.DumpContext()
+                self.Emulator.Instruction.dump_context()
                 print('')
                 pass
 
         self.LastCodeAddress = address
         self.LastCodeSize = size
 
-    def Run(self, trace_self_modification = False, print_first_instructions = False):
+    def run(self, trace_self_modification = False, print_first_instructions = False):
         process_memory = pe.ProcessMemory(self.Emulator)
-        process_memory.LoadProcessMemory()
+        process_memory.load_process_memory()
 
         if self.ShellcodeBytes:
             shellcode_bytes = self.ShellcodeBytes
@@ -112,24 +115,24 @@ class ShellEmu:
             self.CodeLen = len(shellcode_bytes)
             self.CodeStart = self.Emulator.Debugger.GetEntryPoint()
             logger.info("Writing shellcode to %x (len=%x)", self.CodeStart, self.CodeLen)
-            self.Emulator.Memory.WriteMem(self.CodeStart, shellcode_bytes, debug = 0)            
+            self.Emulator.Memory.write_memory(self.CodeStart, shellcode_bytes, debug = 0)            
 
         if trace_self_modification:
-            self.Emulator.Memory.HookMemoryWrite(self.CodeStart, self.CodeStart+self.CodeLen)
+            self.Emulator.Memory.hook_memory_write(self.CodeStart, self.CodeStart+self.CodeLen)
 
         if print_first_instructions:
-            self.Emulator.AddHook(UC_HOOK_CODE, self.InstructionCallback, None, self.CodeStart, self.CodeStart+1)
+            self.Emulator.add_unicorn_hook(UC_HOOK_CODE, self.instruction_callback, None, self.CodeStart, self.CodeStart+1)
 
-        self.Emulator.Memory.HookUnmappedMemoryAccess()
-        api_hook = api.Hook(self.Emulator)
-        api_hook.Start()
+        self.Emulator.Memory.hook_unmapped_memory_access()
+        api_hook = shellcode_emulator.api.Hook(self.Emulator)
+        api_hook.start()
 
-        self.Emulator.Instruction.SetCodeRange(self.CodeStart, self.CodeStart+self.CodeLen)
+        self.Emulator.Instruction.set_code_range(self.CodeStart, self.CodeStart+self.CodeLen)
         try:
-            self.Emulator.Start(self.CodeStart, self.CodeStart+self.CodeLen)
+            self.Emulator.start(self.CodeStart, self.CodeStart+self.CodeLen)
         except:
             traceback.print_exc(file = sys.stdout)
-            self.Emulator.Instruction.DumpContext()
+            self.Emulator.Instruction.dump_context()
 
 if __name__ == '__main__':
     from optparse import OptionParser, Option
@@ -171,4 +174,4 @@ if __name__ == '__main__':
         sys.exit(0)
 
     shell_emu = ShellEmu(shellcode_filename, shellcode_bytes = shellcode_bytes, dump_filename = options.dump_filename)
-    shell_emu.Run(trace_self_modification = True, print_first_instructions = True)
+    shell_emu.run(trace_self_modification = True, print_first_instructions = True)
