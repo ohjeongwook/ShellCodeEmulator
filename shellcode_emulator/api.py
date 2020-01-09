@@ -33,7 +33,7 @@ class Hook:
 
         code = uc.mem_read(address, size)
         try:
-            name = self.Emulator.Debugger.ResolveSymbol(instruction.address)
+            name = self.Emulator.Debugger.resolve_symbol(instruction.address)
         except:
             name = ''
 
@@ -53,10 +53,10 @@ class Hook:
                 module_filename = self.UC.Memory.read_unicode_string(uc, module_filename_addr)
                 logger.debug('Module Filename: ' + module_filename)
 
-                module_base = self.Emulator.Debugger.GetModuleBase(module_filename)
+                module_base = self.Emulator.Debugger.get_module_base(module_filename)
                 
                 if not module_base:
-                    module_base = self.Emulator.Debugger.GetModuleBase(module_filename.split('.')[0])
+                    module_base = self.Emulator.Debugger.get_module_base(module_filename.split('.')[0])
                     
                 if module_base:                        
                     logger.debug('Write Module Base: %.8x --> %.8x' % 
@@ -80,7 +80,7 @@ class Hook:
                             )
                         )
             
-            module_name = self.Emulator.Debugger.GetModuleNameFromBase(module_handle)
+            module_name = self.Emulator.Debugger.get_module_name_from_base(module_handle)
             proc_name = self.UC.Memory.read_string(uc, proc_name_ptr)
             symbol = "%s!%s" % (module_name, proc_name)
             
@@ -181,7 +181,7 @@ class Hook:
         self.LastCodeInfo = user_data
 
     def start(self):
-        self.Emulator.Debugger.LoadSymbols(self.TraceModules)
+        self.Emulator.Debugger.load_symbols(self.TraceModules)
 
         for trace_module in self.TraceModules:
             for (symbol, address) in self.Emulator.Debugger.SymbolToAddress.items():

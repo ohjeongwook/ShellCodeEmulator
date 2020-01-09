@@ -97,7 +97,7 @@ class ProcessMemory:
     def load_tib(self, tib_filename = 'tib.bin', fs_base = 0x0f4c000):
         if self.Emulator.Debugger and not tib_filename:
             tib_filename = 'tib.dmp'
-            self.Emulator.Debugger.RunCmd(".writemem %s fs:0 L?0x1000" % tib_filename)
+            self.Emulator.Debugger.run_command(".writemem %s fs:0 L?0x1000" % tib_filename)
 
         if tib_filename:
             with open(tib_filename, 'rb') as fd:
@@ -113,12 +113,12 @@ class ProcessMemory:
             self.Emulator.Memory.write_memory(fs_base, tib_bytes, debug = 0)
 
     def load_process_memory(self):
-        self.Emulator.Debugger.SetSymbolPath()
-        self.Emulator.Debugger.EnumerateModules()
+        self.Emulator.Debugger.set_symbol_path()
+        self.Emulator.Debugger.enumerate_modules()
         
         teb_list = []
         teb_bytes = []
-        for address in self.Emulator.Debugger.GetAddressList():
+        for address in self.Emulator.Debugger.get_address_list():
             if address['State'] in ('MEM_FREE', 'MEM_RESERVE') or address['Usage'] == 'Free':
                 continue
 
@@ -147,7 +147,7 @@ class ProcessMemory:
             if self.Emulator.Debugger:
                 tmp_dmp_filename = 'tmp.dmp'
                 try:
-                    self.Emulator.Debugger.RunCmd(".writemem %s %x L?%x" % (tmp_dmp_filename, address['BaseAddr'], address['RgnSize']))
+                    self.Emulator.Debugger.run_command(".writemem %s %x L?%x" % (tmp_dmp_filename, address['BaseAddr'], address['RgnSize']))
                 except:
                     logger.debug("* Writemem failed")
                     traceback.print_exc(file = sys.stdout)
@@ -160,7 +160,7 @@ class ProcessMemory:
                 self.Emulator.Memory.map(address['BaseAddr'], address['RgnSize'])
 
                 try:
-                    bytes_list = self.Emulator.Debugger.GetBytes(address['BaseAddr'], address['RgnSize'])
+                    bytes_list = self.Emulator.Debugger.get_bytes(address['BaseAddr'], address['RgnSize'])
                 except:
                     logger.debug("* loadBytes failed")
                     traceback.print_exc(file = sys.stdout)

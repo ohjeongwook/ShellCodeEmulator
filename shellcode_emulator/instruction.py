@@ -49,7 +49,7 @@ class Tool:
             symbol_str = ''
             if self.Emulator.Debugger:
                 try:
-                    symbol_str = self.Emulator.Debugger.ResolveSymbol(instruction.address) + ':\t'
+                    symbol_str = self.Emulator.Debugger.resolve_symbol(instruction.address) + ':\t'
                 except:
                     pass
                     
