@@ -17,8 +17,8 @@ setuptools.setup(
         'unicorn',
         'capstone',
         'pykd',
-        'windbgtool-ohjeongwook @ git+https://github.com/ohjeongwook/windbgtool@v1.0#egg=windbgtool-ohjeongwook',
-        'idatool-ohjeongwook @ git+https://github.com/ohjeongwook/idatool@v1.0#egg=idatool-ohjeongwook',
+        'windbgtool-ohjeongwook @ git+https://github.com/ohjeongwook/windbgtool@v1.1#egg=windbgtool-ohjeongwook',
+        'idatool-ohjeongwook @ git+https://github.com/ohjeongwook/idatool@v1.1#egg=idatool-ohjeongwook',
     ],
     classifiers=[
         "Programming Language :: Python :: 2",
