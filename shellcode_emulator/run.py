@@ -38,11 +38,11 @@ class Emulator:
         elif arch == 'AMD64':
             self.uc = Uc(UC_ARCH_X86, UC_MODE_64)
 
-        self.Instruction = instruction.Tool(self)
-        self.Memory = memory.Tool(self)
-        self.Register = register.Tool(self)
+        self.Instruction = shellcode_emulator.instruction.Tool(self)
+        self.Memory = shellcode_emulator.memory.Tool(self)
+        self.Register = shellcode_emulator.register.Tool(self)
         self.Debugger = windbgtool.debugger.DbgEngine()
-        self.Debugger.LoadDump(dump_filename)
+        self.Debugger.load_dump(dump_filename)
 
     def get_register_by_name(self, register_name):
         if register_name == "esp":
@@ -102,7 +102,7 @@ class ShellEmu:
         self.LastCodeSize = size
 
     def run(self, trace_self_modification = False, print_first_instructions = False):
-        process_memory = pe.ProcessMemory(self.Emulator)
+        process_memory = shellcode_emulator.pe.ProcessMemory(self.Emulator)
         process_memory.load_process_memory()
 
         if self.ShellcodeBytes:
@@ -113,7 +113,7 @@ class ShellEmu:
 
         if shellcode_bytes:
             self.CodeLen = len(shellcode_bytes)
-            self.CodeStart = self.Emulator.Debugger.GetEntryPoint()
+            self.CodeStart = self.Emulator.Debugger.get_entry_point_address()
             logger.info("Writing shellcode to %x (len=%x)", self.CodeStart, self.CodeLen)
             self.Emulator.Memory.write_memory(self.CodeStart, shellcode_bytes, debug = 0)            
 
@@ -164,10 +164,10 @@ if __name__ == '__main__':
     shellcode_bytes = ''
     if options.list_filename:
         list_parser = idatool.list.Parser(options.list_filename)
-        list_parser.Parse()
+        list_parser.parse()
         shellcode_bytes = ''
-        for name in list_parser.GetNames():
-            shellcode_bytes += list_parser.GetBytes(name)
+        for name in list_parser.get_names():
+            shellcode_bytes += list_parser.get_bytes(name)
 
     if not shellcode_filename and not shellcode_bytes:
         parser.print_help()

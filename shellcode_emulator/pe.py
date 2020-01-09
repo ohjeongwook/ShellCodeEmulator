@@ -53,17 +53,20 @@ class ProcessMemory:
         ldr += pack32(addrofnamedll)  # 0x30
         return ldr
 
-    def init_teb(seft, peb_address):
-        teb = ''
-        teb += pack32(0x0) * 7
-        teb += pack32(0x0)  # EnvironmentPointer
-        teb += pack32(0x0)  # ClientId
-        teb += pack32(0x0)  # ThreadLocalStoragePointer
-        teb += pack32(peb_address)  # ProcessEnvironmentBlock
-        teb += pack32(0x0)  # LastErrorValue
-        return teb
+    def init_teb(self):
+        fs_data = ''
+        fs_data += pack32(0x0)  # 0x0
+        fs_data += pack32(self.StackBase)  # 0x4
+        fs_data += pack32(self.StackLimit)  # 0x8
+        fs_data += pack32(0x0) * 3  # 0x14
+        fs_data += pack32(self.FS)
+        fs_data += pack32(0x0) * 4
+        fs_data += pack32(self.TebAddr)
+        fs_data += pack32(self.PebAddr)
+        fs_data += pack32(0x0)
+        return fs_data        
 
-    def init_peb(seft, image_base, peb_ldr_address):
+    def init_peb(self, image_base, peb_ldr_address):
         peb = ''
         peb += pack32(0x0) * 2  # InheritedAddressSpace
         peb += pack32(image_base)  # imageBaseAddress
@@ -81,19 +84,6 @@ class ProcessMemory:
         peb_ldr_data += pack32(ldr_address + 0x10)  # 0x1C
         peb_ldr_data += pack32(ldr_address + 0x14)
         return peb_ldr_data
-
-    def init_teb(self):
-        fs_data = ''
-        fs_data += pack32(0x0)  # 0x0
-        fs_data += pack32(self.StackBase)  # 0x4
-        fs_data += pack32(self.StackLimit)  # 0x8
-        fs_data += pack32(0x0) * 3  # 0x14
-        fs_data += pack32(self.FS)
-        fs_data += pack32(0x0) * 4
-        fs_data += pack32(self.TebAddr)
-        fs_data += pack32(self.PebAddr)
-        fs_data += pack32(0x0)
-        return fs_data
 
     def setup_stack(self):
         self.StackSize = 0x1000
@@ -183,7 +173,7 @@ class ProcessMemory:
                 self.Emulator.Memory.write_memory(address['BaseAddr'], bytes)
 
         if len(teb_list) > 0:
-            gdt_layout = gdt.Layout(self.Emulator)
+            gdt_layout = shellcode_emulator.gdt.Layout(self.Emulator)
             if self.Emulator.Arch == 'x86':
                 segment_limit = 0xffffffff
                 logger.info("* Setting up fs: %x (len=%x)" % (teb_list[0]['BaseAddr'], teb_list[0]['RgnSize']))
