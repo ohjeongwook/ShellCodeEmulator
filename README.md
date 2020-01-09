@@ -1,12 +1,16 @@
 # Windows shellcode emulation tool based upon [unicorn framework](https://www.unicorn-engine.org/).
 
-ShellcodeEmulator emulates Windows shellcode with the help of windbg process memory dumps. You can provide shellcode to analyze with any Windows process dump image and it will emulate as much as the userland code using the provided dump image. You can add your custom syscall handlers or any handlers in between the API calls used by shellcode and the kernel layer. This can provide full view of the user stack and also let you handle shellcode that are bypassing existing shellcode harnesses by calling syscalls directly.
+ShellcodeEmulator emulates Windows shellcode with the help of windbg process memory dumps. You can provide shellcode to analyze with any Windows process dump image. The tool will emulate as much as of the userland code using the shellcode bytes and the provided dump image.
+
+You can add your custom syscall handlers or any handlers in between the API calls used by shellcode and the kernel layer. This can provide full view of the user stack and also let you handle shellcode bypasses existing shellcode harnesses, for example by calling syscalls directly.
 
 ## Installation
 
 ```
 pip install git+https://github.com/ohjeongwook/ShellcodeEmulator --upgrade
 ```
+
+* Please run [install_windbg_files.py](https://github.com/ohjeongwook/windbgtool/blob/master/installation/install_windbg_files.py) if you experience any PyKD/WinDbg integration issues
 
 ## Usage
 
