@@ -35,7 +35,7 @@ class Tool:
             md = capstone.Cs(capstone.CS_ARCH_X86, capstone.CS_MODE_64)
         return md.disasm(code, address)
 
-    def dump_disassembly(self, address, size, resolve_symbol = False, dump_instruction_count = 1):
+    def dump_disassembly(self, address, size, find_symbol = False, dump_instruction_count = 1):
         code = self.uc.mem_read(address, size)
 
         try:            
@@ -50,7 +50,7 @@ class Tool:
             symbol_str = ''
             if self.emulator.debugger:
                 try:
-                    symbol_str = self.emulator.debugger.resolve_symbol(instruction.address) + ':\t'
+                    symbol_str = self.emulator.debugger.find_symbol(instruction.address) + ':\t'
                 except:
                     pass
                     

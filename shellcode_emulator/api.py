@@ -32,11 +32,11 @@ class Hook:
         uc.reg_write(self.emulator.get_register_by_name("eax"), return_value)
 
     def callback(self, uc, address, size, user_data):
-        self.emulator.instruction.dump_disassembly(address, size, resolve_symbol = True)
+        self.emulator.instruction.dump_disassembly(address, size, find_symbol = True)
 
         code = uc.mem_read(address, size)
         try:
-            name = self.emulator.debugger.resolve_symbol(instruction.address)
+            name = self.emulator.debugger.find_symbol(instruction.address)
         except:
             name = ''
 
