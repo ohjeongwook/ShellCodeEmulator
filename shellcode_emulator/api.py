@@ -187,7 +187,7 @@ class Hook:
         self.emulator.debugger.load_symbols(self.trace_target_modules)
 
         for trace_module in self.trace_target_modules:
-            for (symbol, address) in self.emulator.debugger.SymbolToAddress.items():
+            for (symbol, address) in self.emulator.debugger.symbol_to_address.items():
                 logger.debug("api.Hook.start: %s - %s (%x)", trace_module, symbol, address)
                 self.emulator.add_unicorn_hook(UC_HOOK_CODE, self.callback, trace_module, address, address)
 
