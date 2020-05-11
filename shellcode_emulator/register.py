@@ -14,17 +14,17 @@ from unicorn.x86_const import *
 
 class Tool:
     def __init__(self, emulator):
-        self.Emulator = emulator
+        self.emulator = emulator
         self.uc = emulator.uc
 
     def write(self, register_name, value):
-        self.uc.reg_write(self.Emulator.get_register_by_name(register_name), value)
+        self.uc.reg_write(self.emulator.get_register_by_name(register_name), value)
 
     def write_register(self, register, value):
         self.uc.reg_write(register, value)
 
     def print_registers(self):
-        if self.Emulator.Arch == 'x86':
+        if self.emulator.arch == 'x86':
             print('eax: %.8X ebx: %.8X ecx: %.8X edx: %.8X' % (
                                 self.uc.reg_read(UC_X86_REG_EAX), 
                                 self.uc.reg_read(UC_X86_REG_EBX), 
@@ -45,7 +45,7 @@ class Tool:
                                 self.uc.reg_read(UC_X86_REG_EIP)
                             )
                         )
-        elif self.Emulator.Arch == 'AMD64':
+        elif self.emulator.arch == 'AMD64':
             print('rax: %.8X ebx: %.8X ecx: %.8X edx: %.8X' % (
                                 self.uc.reg_read(UC_X86_REG_RAX), 
                                 self.uc.reg_read(UC_X86_REG_RBX), 

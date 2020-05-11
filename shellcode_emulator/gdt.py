@@ -40,7 +40,7 @@ CODE_SIZE = 0x1000
 
 class Layout:
     def __init__(self, uc):
-        self.UC = uc
+        self.uc = uc
 
     def create_gdt_entry(self, base, limit, access, flags):
         to_ret = limit & 0xffff
@@ -66,7 +66,7 @@ class Layout:
                 gs_limit = None, 
                 segment_limit = 0xffffffff
         ):
-        self.UC.Memory.map(gdt_addr, gdt_limit)
+        self.uc.Memory.map(gdt_addr, gdt_limit)
         gdt = [self.create_gdt_entry(0,0,0,0) for i in range(0x34)]
         
         if fs_base != None and fs_limit != None:
@@ -86,11 +86,11 @@ class Layout:
 
         for idx, value in enumerate(gdt):
             offset = idx * gdt_entry_size
-            self.UC.Memory.write_memory(gdt_addr + offset, value)
+            self.uc.Memory.write_memory(gdt_addr + offset, value)
         
-        self.UC.Register.write_register(UC_X86_REG_GDTR, (0, gdt_addr, len(gdt) * gdt_entry_size-1, 0x0))
-        self.UC.Register.write_register(UC_X86_REG_FS, self.create_selector(0x0e, S_GDT | S_PRIV_0))
-        self.UC.Register.write_register(UC_X86_REG_GS, self.create_selector(0x0f, S_GDT | S_PRIV_3))
-        self.UC.Register.write_register(UC_X86_REG_DS, self.create_selector(0x10, S_GDT | S_PRIV_3))
-        self.UC.Register.write_register(UC_X86_REG_CS, self.create_selector(0x11, S_GDT | S_PRIV_3))
-        self.UC.Register.write_register(UC_X86_REG_SS, self.create_selector(0x12, S_GDT | S_PRIV_0))
+        self.uc.Register.write_register(UC_X86_REG_GDTR, (0, gdt_addr, len(gdt) * gdt_entry_size-1, 0x0))
+        self.uc.Register.write_register(UC_X86_REG_FS, self.create_selector(0x0e, S_GDT | S_PRIV_0))
+        self.uc.Register.write_register(UC_X86_REG_GS, self.create_selector(0x0f, S_GDT | S_PRIV_3))
+        self.uc.Register.write_register(UC_X86_REG_DS, self.create_selector(0x10, S_GDT | S_PRIV_3))
+        self.uc.Register.write_register(UC_X86_REG_CS, self.create_selector(0x11, S_GDT | S_PRIV_3))
+        self.uc.Register.write_register(UC_X86_REG_SS, self.create_selector(0x12, S_GDT | S_PRIV_0))

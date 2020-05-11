@@ -32,38 +32,38 @@ logger = logging.getLogger(__name__)
 
 class Emulator:
     def __init__(self, dump_filename, arch = 'AMD64'):
-        self.Arch = arch
+        self.arch = arch
         if arch == 'x86':
             self.uc = Uc(UC_ARCH_X86, UC_MODE_32)
         elif arch == 'AMD64':
             self.uc = Uc(UC_ARCH_X86, UC_MODE_64)
 
-        self.Instruction = shellcode_emulator.instruction.Tool(self)
-        self.Memory = shellcode_emulator.memory.Tool(self)
-        self.Register = shellcode_emulator.register.Tool(self)
-        self.Debugger = windbgtool.debugger.DbgEngine()
-        self.Debugger.load_dump(dump_filename)
+        self.instruction = shellcode_emulator.instruction.Tool(self)
+        self.memory = shellcode_emulator.memory.Tool(self)
+        self.register = shellcode_emulator.register.Tool(self)
+        self.debugger = windbgtool.debugger.DbgEngine()
+        self.debugger.load_dump(dump_filename)
 
     def get_register_by_name(self, register_name):
         if register_name == "esp":
-            if self.Arch == 'x86':
+            if self.arch == 'x86':
                 return UC_X86_REG_ESP
-            elif self.Arch == 'AMD64':
+            elif self.arch == 'AMD64':
                 return UC_X86_REG_RSP
         elif register_name == "ebp":
-            if self.Arch == 'x86':
+            if self.arch == 'x86':
                 return UC_X86_REG_EBP
-            elif self.Arch == 'AMD64':
+            elif self.arch == 'AMD64':
                 return UC_X86_REG_RBP
         elif register_name == "eip":
-            if self.Arch == 'x86':
+            if self.arch == 'x86':
                 return UC_X86_REG_EIP
-            elif self.Arch == 'AMD64':
+            elif self.arch == 'AMD64':
                 return UC_X86_REG_RIP
         elif register_name == "eax":
-            if self.Arch == 'x86':
+            if self.arch == 'x86':
                 return UC_X86_REG_EAX
-            elif self.Arch == 'AMD64':
+            elif self.arch == 'AMD64':
                 return UC_X86_REG_RAX
 
     def add_unicorn_hook(self, hook_type, callback, arg = None, start = 0, end = 0):
@@ -73,66 +73,65 @@ class Emulator:
         self.uc.emu_start(start, end)
 
 class ShellEmu:
-    def __init__(self, shellcode_filename, shellcode_bytes = '', dump_filename = ''):
-        self.ShellcodeFilename = shellcode_filename
-        self.ShellcodeBytes = shellcode_bytes
-        self.DumpFilename = dump_filename
-        self.ExhaustiveLoopDumpFrequency = 0x10000
-        self.HitMap = {}            
-        self.LastCodeAddress = 0
-        self.LastCodeSize = 0
+    def __init__(self, shellcode_filename, shellcode_bytes = '', dump_filename = '', exhaustive_loop_dump_frequency = 0x10000):
+        self.shellcode_filename = shellcode_filename
+        self.shellcode_bytes = shellcode_bytes
+        self.exhaustive_loop_dump_frequency = exhaustive_loop_dump_frequency
+        self.address_hit_map = {}            
+        self.last_code_address = 0
+        self.last_code_size = 0
 
-        self.Emulator = Emulator(dump_filename = dump_filename)
+        self.emulator = Emulator(dump_filename = dump_filename)
 
     def instruction_callback(self, uc, address, size, user_data):
-        self.Emulator.Instruction.dump_context()
+        self.emulator.instruction.dump_context()
 
-        if not address in self.HitMap:
-            self.HitMap[address] = 1
+        if not address in self.address_hit_map:
+            self.address_hit_map[address] = 1
         else:
-            self.HitMap[address] += 1
+            self.address_hit_map[address] += 1
             
-            if self.HitMap[address] % self.ExhaustiveLoopDumpFrequency == 0:
-                print('Exhaustive Loop found: %x' % (self.HitMap[address]))
-                self.Emulator.Instruction.dump_context()
+            if self.address_hit_map[address] % self.exhaustive_loop_dump_frequency == 0:
+                print('Exhaustive Loop found: %x' % (self.address_hit_map[address]))
+                self.emulator.instruction.dump_context()
                 print('')
                 pass
 
-        self.LastCodeAddress = address
-        self.LastCodeSize = size
+        self.last_code_address = address
+        self.last_code_size = size
 
     def run(self, trace_self_modification = False, print_first_instructions = False):
-        process_memory = shellcode_emulator.pe.ProcessMemory(self.Emulator)
+        process_memory = shellcode_emulator.pe.ProcessMemory(self.emulator)
         process_memory.load_process_memory()
 
-        if self.ShellcodeBytes:
-            shellcode_bytes = self.ShellcodeBytes
+        if self.shellcode_bytes:
+            shellcode_bytes = self.shellcode_bytes
         else:
-            with open(self.ShellcodeFilename, 'rb') as fd:
+            with open(self.shellcode_filename, 'rb') as fd:
                 shellcode_bytes = fd.read()
 
         if shellcode_bytes:
             self.CodeLen = len(shellcode_bytes)
-            self.CodeStart = self.Emulator.Debugger.get_entry_point_address()
+            self.CodeStart = self.emulator.debugger.get_entry_point_address()
             logger.info("Writing shellcode to %x (len=%x)", self.CodeStart, self.CodeLen)
-            self.Emulator.Memory.write_memory(self.CodeStart, shellcode_bytes, debug = 0)            
+            self.emulator.memory.write_memory(self.CodeStart, shellcode_bytes, debug = 0)            
 
         if trace_self_modification:
-            self.Emulator.Memory.hook_memory_write(self.CodeStart, self.CodeStart+self.CodeLen)
+            self.emulator.memory.hook_memory_write(self.CodeStart, self.CodeStart+self.CodeLen)
 
         if print_first_instructions:
-            self.Emulator.add_unicorn_hook(UC_HOOK_CODE, self.instruction_callback, None, self.CodeStart, self.CodeStart+1)
+            self.emulator.add_unicorn_hook(UC_HOOK_CODE, self.instruction_callback, None, self.CodeStart, self.CodeStart+1)
 
-        self.Emulator.Memory.hook_unmapped_memory_access()
-        api_hook = shellcode_emulator.api.Hook(self.Emulator)
+        self.emulator.memory.hook_unmapped_memory_access()
+        api_hook = shellcode_emulator.api.Hook(self.emulator)
         api_hook.start()
 
-        self.Emulator.Instruction.set_code_range(self.CodeStart, self.CodeStart+self.CodeLen)
+        self.emulator.instruction.set_code_range(self.CodeStart, self.CodeStart+self.CodeLen)
         try:
-            self.Emulator.start(self.CodeStart, self.CodeStart+self.CodeLen)
+            self.emulator.start(self.CodeStart, self.CodeStart+self.CodeLen)
         except:
             traceback.print_exc(file = sys.stdout)
-            self.Emulator.Instruction.dump_context()
+            self.emulator.instruction.dump_context()
 
 if __name__ == '__main__':
     from optparse import OptionParser, Option

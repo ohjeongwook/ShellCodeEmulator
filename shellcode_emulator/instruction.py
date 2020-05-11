@@ -16,21 +16,21 @@ import shellcode_emulator.utils
 
 class Tool:
     def __init__(self, emulator):
-        self.Emulator = emulator
+        self.emulator = emulator
         self.uc = emulator.uc
-        self.LastCodeAddress = 0
-        self.LastCodeSize = 0
-        self.Start = 0
-        self.End = 0
+        self.last_code_address = 0
+        self.last_code_size = 0
+        self.start = 0
+        self.end = 0
 
     def set_code_range(self, start, end):
-        self.Start = start
-        self.End = end
+        self.start = start
+        self.end = end
 
     def disassemble(self, code, address):
-        if self.Emulator.Arch == 'x86':
+        if self.emulator.arch == 'x86':
             md = capstone.Cs(capstone.CS_ARCH_X86, capstone.CS_MODE_32)
-        elif self.Emulator.Arch == 'AMD64':
+        elif self.emulator.arch == 'AMD64':
             md = capstone.Cs(capstone.CS_ARCH_X86, capstone.CS_MODE_64)
         return md.disasm(code, address)
 
@@ -47,16 +47,16 @@ class Tool:
         offset = 0
         for instruction in disasm_list:
             symbol_str = ''
-            if self.Emulator.Debugger:
+            if self.emulator.debugger:
                 try:
-                    symbol_str = self.Emulator.Debugger.resolve_symbol(instruction.address) + ':\t'
+                    symbol_str = self.emulator.debugger.resolve_symbol(instruction.address) + ':\t'
                 except:
                     pass
                     
 
             code_offset = 0
-            if self.Start <= instruction.address and instruction.address <= self.End:
-                code_offset = instruction.address - self.Start
+            if self.start <= instruction.address and instruction.address <= self.end:
+                code_offset = instruction.address - self.start
                 
             if code_offset>0:
                 address_str = '+%.8X: ' % (code_offset)
@@ -72,11 +72,11 @@ class Tool:
                 break
 
     def dump_context(self, dump_registers = True, dump_previous_eip = False):
-        self.dump_disassembly(self.uc.reg_read(self.Emulator.get_register_by_name("eip")), 10)
+        self.dump_disassembly(self.uc.reg_read(self.emulator.get_register_by_name("eip")), 10)
 
         if dump_registers:
-            self.Emulator.Register.print_registers()
+            self.emulator.Register.print_registers()
 
-        if dump_previous_eip and self.LastCodeAddress>0:
+        if dump_previous_eip and self.last_code_address>0:
             print('> Last EIP before this instruction:')
-            self.dump_disassembly(self.LastCodeAddress, self.LastCodeSize)
+            self.dump_disassembly(self.last_code_address, self.last_code_size)

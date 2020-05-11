@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 class Tool:
     def __init__(self, emulator):
-        self.Emulator = emulator
+        self.emulator = emulator
         self.uc = emulator.uc
 
     def read_string(self, address): 
@@ -36,7 +36,7 @@ class Tool:
         return ret
 
     def get_stack(self, arg_count):
-        esp = self.uc.reg_read(self.Emulator.get_register_by_name("esp"))
+        esp = self.uc.reg_read(self.emulator.get_register_by_name("esp"))
         ret = struct.unpack("<"+"L"*(arg_count+1), self.uc.mem_read(esp, 4*(1+arg_count)))    
         return ret
 
@@ -96,12 +96,12 @@ class Tool:
 
     def memory_write_callback(self, uc, access, address, size, value, user_data):
         if access == UC_MEM_WRITE:
-            eip = uc.reg_read(self.Emulator.get_register_by_name("eip"))
+            eip = uc.reg_read(self.emulator.get_register_by_name("eip"))
             logger.debug("* %.8x: Memory Write 0x%.8x (Size:%.8u) <-- 0x%.8x" %(eip - self.CodeStart, address, size, value))
-            self.Emulator.Instruction.dump_context()
+            self.emulator.instruction.dump_context()
 
     def hook_memory_write(self, start, end):
-        self.Emulator.add_unicorn_hook(
+        self.emulator.add_unicorn_hook(
                     UC_HOOK_MEM_WRITE, 
                     self.memory_write_callback, 
                     None, 
@@ -110,7 +110,7 @@ class Tool:
                 )
 
     def memory_access_callback(self, uc, access, address, size, value, user_data):
-        eip = uc.reg_read(self.Emulator.get_register_by_name("eip"))
+        eip = uc.reg_read(self.emulator.get_register_by_name("eip"))
         if access == UC_MEM_WRITE:
             logger.info("* %.8x: Memory Write 0x%.8x (Size:%.8u) <-- 0x%.8x" %
                             (
@@ -137,10 +137,10 @@ class Tool:
                                 value
                             )
                         )
-            self.Emulator.Instruction.dump_context()
+            self.emulator.instruction.dump_context()
 
     def hook_memory_access(self, start, end):
-        self.Emulator.add_unicorn_hook(UC_HOOK_MEM_READ | UC_HOOK_MEM_WRITE, self.memory_access_callback, start, end)                
+        self.emulator.add_unicorn_hook(UC_HOOK_MEM_READ | UC_HOOK_MEM_WRITE, self.memory_access_callback, start, end)                
 
     def unmapped_memory_access_callback(self, uc, access, address, size, value, user_data):
         if access == UC_MEM_WRITE_UNMAPPED:
@@ -150,8 +150,8 @@ class Tool:
         elif access == UC_MEM_FETCH_UNMAPPED:
             logger.info("* Memory Fetch Fail: @0x%x (Size:%u)" % (address, size))
 
-        self.Emulator.Instruction.dump_context()
-        print(hex(self.uc.reg_read(self.Emulator.get_register_by_name("eip"))))
+        self.emulator.instruction.dump_context()
+        print(hex(self.uc.reg_read(self.emulator.get_register_by_name("eip"))))
         return False
         
     def hook_unmapped_memory_access(self):
