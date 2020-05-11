@@ -97,7 +97,7 @@ class Tool:
     def memory_write_callback(self, uc, access, address, size, value, user_data):
         if access == UC_MEM_WRITE:
             eip = uc.reg_read(self.emulator.get_register_by_name("eip"))
-            logger.debug("* %.8x: Memory Write 0x%.8x (Size:%.8u) <-- 0x%.8x" %(eip - self.CodeStart, address, size, value))
+            logger.debug("* %.8x: Memory Write 0x%.8x (Size:%.8u) <-- 0x%.8x" %(eip - self.code_start, address, size, value))
             self.emulator.instruction.dump_context()
 
     def hook_memory_write(self, start, end):
@@ -114,7 +114,7 @@ class Tool:
         if access == UC_MEM_WRITE:
             logger.info("* %.8x: Memory Write 0x%.8x (Size:%.8u) <-- 0x%.8x" %
                             (
-                                eip-self.CodeStart, 
+                                eip-self.code_start, 
                                 address, 
                                 size, 
                                 value
@@ -130,8 +130,8 @@ class Tool:
             logger.info("* %.8x (%.8x + %.8x): Memory Read  0x%.8x (Size:%.8u) --> 0x%.8x" %
                             (
                                 eip,
-                                self.CodeStart,
-                                eip-self.CodeStart, 
+                                self.code_start,
+                                eip-self.code_start, 
                                 address, 
                                 size, 
                                 value

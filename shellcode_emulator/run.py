@@ -111,24 +111,24 @@ class ShellEmu:
                 shellcode_bytes = fd.read()
 
         if shellcode_bytes:
-            self.CodeLen = len(shellcode_bytes)
-            self.CodeStart = self.emulator.debugger.get_entry_point_address()
-            logger.info("Writing shellcode to %x (len=%x)", self.CodeStart, self.CodeLen)
-            self.emulator.memory.write_memory(self.CodeStart, shellcode_bytes, debug = 0)            
+            self.code_length = len(shellcode_bytes)
+            self.code_start = self.emulator.debugger.get_entry_point_address()
+            logger.info("Writing shellcode to %x (len=%x)", self.code_start, self.code_length)
+            self.emulator.memory.write_memory(self.code_start, shellcode_bytes, debug = 0)            
 
         if trace_self_modification:
-            self.emulator.memory.hook_memory_write(self.CodeStart, self.CodeStart+self.CodeLen)
+            self.emulator.memory.hook_memory_write(self.code_start, self.code_start+self.code_length)
 
         if print_first_instructions:
-            self.emulator.add_unicorn_hook(UC_HOOK_CODE, self.instruction_callback, None, self.CodeStart, self.CodeStart+1)
+            self.emulator.add_unicorn_hook(UC_HOOK_CODE, self.instruction_callback, None, self.code_start, self.code_start+1)
 
         self.emulator.memory.hook_unmapped_memory_access()
         api_hook = shellcode_emulator.api.Hook(self.emulator)
         api_hook.start()
 
-        self.emulator.instruction.set_code_range(self.CodeStart, self.CodeStart+self.CodeLen)
+        self.emulator.instruction.set_code_range(self.code_start, self.code_start+self.code_length)
         try:
-            self.emulator.start(self.CodeStart, self.CodeStart+self.CodeLen)
+            self.emulator.start(self.code_start, self.code_start+self.code_length)
         except:
             traceback.print_exc(file = sys.stdout)
             self.emulator.instruction.dump_context()
