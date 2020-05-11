@@ -3,6 +3,7 @@
 
 import os
 import sys
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 import struct
 import traceback
@@ -75,7 +76,7 @@ class Tool:
         self.dump_disassembly(self.uc.reg_read(self.emulator.get_register_by_name("eip")), 10)
 
         if dump_registers:
-            self.emulator.Register.print_registers()
+            self.emulator.register.print_registers()
 
         if dump_previous_eip and self.last_code_address>0:
             print('> Last EIP before this instruction:')
