@@ -12,7 +12,8 @@ from unicorn.x86_const import *
 logger = logging.getLogger(__name__)
 
 class Tool:
-    def __init__(self, emulator):
+    def __init__(self, emulator, arch):
+        self.arch = arch
         self.emulator = emulator
         self.uc = emulator.uc
 
@@ -35,10 +36,20 @@ class Tool:
             
         return ret
 
-    def get_stack(self, arg_count):
+    def get_stack(self, arg_count, skip_return = False):
         esp = self.uc.reg_read(self.emulator.register.get_by_name("sp"))
-        ret = struct.unpack("<"+"L"*(arg_count+1), self.uc.mem_read(esp, 4*(1+arg_count)))    
-        return ret
+
+        if self.arch == 'AMD64':
+            pointer_size = 8
+            unpack_str = "Q"
+        else:
+            pointer_size = 4
+            unpack_str = "L"
+
+        if skip_return:
+            offset = pointer_size
+
+        return struct.unpack("<"+unpack_str*arg_count, self.uc.mem_read(esp + offset, pointer_size*arg_count))
 
     def read_unicode_string(self, address):
         (length, maximum_length, buffer) = struct.unpack("<HHL", self.uc.mem_read(address, 8))
