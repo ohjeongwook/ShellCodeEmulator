@@ -58,16 +58,8 @@ class Layout:
         to_ret |= idx << 3
         return to_ret
 
-    def setup(self, 
-                gdt_addr = 0x80043000, 
-                gdt_limit = 0x1000, 
-                gdt_entry_size = 0x8, 
-                fs_base = None, 
-                fs_limit = None, 
-                gs_base = None, 
-                gs_limit = None, 
-                segment_limit = 0xffffffff
-        ):
+    def setup(self, gdt_addr = 0x80043000, gdt_limit = 0x1000, gdt_entry_size = 0x8, 
+                fs_base = None, fs_limit = None, gs_base = None, gs_limit = None, segment_limit = 0xffffffff):
         self.emulator.memory.map(gdt_addr, gdt_limit)
         gdt = [self.create_gdt_entry(0,0,0,0) for i in range(0x34)]
         
