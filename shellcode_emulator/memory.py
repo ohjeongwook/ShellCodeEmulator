@@ -36,6 +36,25 @@ class Tool:
             
         return ret
 
+    def read_wstring(self, address, chunk_len = 0x100):
+        wstring = ''
+        offset = 0
+        while 1:
+            null_found = False
+            read_bytes = self.uc.mem_read(address+offset, chunk_len)
+            for i in range(0, len(read_bytes)-1, 2):
+                if read_bytes[i] == 0x00 and read_bytes[i+1] == 0x00:
+                    null_found = True
+                    break
+
+                wstring += chr(read_bytes[i])
+
+            if null_found:
+                break
+            offset += len(read_bytes)
+            
+        return wstring
+
     def get_stack(self, arg_count, skip_return = True):
         esp = self.uc.reg_read(self.emulator.register.get_by_name("sp"))
 
