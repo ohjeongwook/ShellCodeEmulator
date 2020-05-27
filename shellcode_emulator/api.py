@@ -7,11 +7,14 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 
 import logging
 import traceback
+import pprint
 
 from unicorn import *
 from unicorn.x86_const import *
 
 import shellcode_emulator.utils
+import windbgtool.debugger
+import windbgtool.windows_api
 
 logger = logging.getLogger(__name__)
 
@@ -23,30 +26,59 @@ class Hook:
         self.uc = emulator.uc
         self.trace_target_modules = ['ntdll', 'kernel32', 'kernelbase']
         self.last_code_information = {}
+        self.windows_api_resolver = windbgtool.windows_api.Resolver()
 
     def return_function(self, uc, return_address, arg_count, return_value):
         print('Return Address: %x' % (return_address))
-        uc.reg_write(self.emulator.register.get_by_name("ip"), return_address)
+        self.uc.reg_write(self.emulator.register.get_by_name("ip"), return_address)
 
-        esp = uc.reg_read(self.emulator.register.get_by_name("sp"))
+        esp = self.uc.reg_read(self.emulator.register.get_by_name("sp"))
         print('New ESP: %x' % (esp+4*(arg_count+1)))
-        uc.reg_write(self.emulator.register.get_by_name("sp"), esp+4*(arg_count+1))        
-        uc.reg_write(self.emulator.register.get_by_name("ax"), return_value)
+        self.uc.reg_write(self.emulator.register.get_by_name("sp"), esp+4*(arg_count+1))        
+        self.uc.reg_write(self.emulator.register.get_by_name("ax"), return_value)
 
     def get_arguments(self, count):
         arguments = []
 
         stack_argument_count = count
         if self.arch == 'AMD64':
-            reg_argument_count = min(count, len(self.amd64_argument_regs))
+            reg_argument_count = min(count, len(Hook.amd64_argument_regs))
             stack_argument_count -= reg_argument_count
             for i in range(0, reg_argument_count, 1):
-                arguments.append(self.uc.reg_read(self.amd64_argument_regs[i]))
+                arguments.append(self.emulator.uc.reg_read(Hook.amd64_argument_regs[i]))
 
         if stack_argument_count > 0:
             arguments += self.emulator.memory.get_stack(stack_argument_count)
 
-        return arguments        
+        return arguments
+
+    def log_arguments(self, function_def, prefix = '    '):
+        if function_def['arguments'] == None:
+            return
+
+        self.emulator.register.print_registers()
+        index = 0
+        argument_values = self.get_arguments(len(function_def['arguments']))
+        for argument in function_def['arguments']:
+            if 'name' in argument:
+                print(prefix + 'name: ' + argument['name'])
+
+            argument_value = argument_values[index]
+            print(prefix + '    ' + hex(argument_value))
+
+            if argument['type'] in ('LPCWSTR', 'LPWSTR'):
+                if argument_value != 0:
+                    try:
+                        print(prefix + '    '+self.emulator.memory.read_unicode_string(argument_value))
+                    except:
+                        print(prefix + '    tException to read memory: %x' % argument_value)
+
+            elif argument['type'] in ('LPCSTR', 'LPSTR'):
+                if argument_value != 0:
+                    try:
+                        print(prefix + '    '+self.emulator.memory.read_string(argument_value))
+                    except:
+                        print(prefix + '    Exception to read memory: %x' % argument_value)
 
     def callback(self, uc, address, size, user_data):
         code = uc.mem_read(address, size)
@@ -58,12 +90,20 @@ class Hook:
 
         sp = self.uc.reg_read(self.emulator.register.get_by_name("sp"))
         print('%x: %s (%x)' % (sp, name, address))
-        if name == 'kernel32!WinExec':
-            arguments = self.get_arguments(2)
-            command = self.emulator.memory.read_string(arguments[0])
-            print('command: %s' % command)
 
-        elif name == 'ntdll!LdrLoadDll':
+        name_tokens = name.split('!')
+
+        if len(name_tokens) > 1:
+            function_name = name.split('!')[1]
+        else:
+            function_name = name
+
+        function_def = self.windows_api_resolver.find_function(function_name)
+
+        if function_def:
+            self.log_arguments(function_def)
+
+        if name == 'ntdll!LdrLoadDll':
             try:
                 (return_address, path_to_file, flags, module_filename_addr, module_handle_out_ptr) = self.emulator.memory.get_stack(4)
                 if self.Debug>0:
