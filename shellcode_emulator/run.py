@@ -66,6 +66,11 @@ class Emulator:
                 return UC_X86_REG_EAX
             elif self.arch == 'AMD64':
                 return UC_X86_REG_RAX
+        elif register_name == "ecx":
+            if self.arch == 'x86':
+                return UC_X86_REG_ECX
+            elif self.arch == 'AMD64':
+                return UC_X86_REG_RCX                
 
     def add_unicorn_hook(self, hook_type, callback, arg = None, start = 0, end = 0):
         self.uc.hook_add(hook_type, callback, arg, start, end)
