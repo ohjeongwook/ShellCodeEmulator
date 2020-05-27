@@ -13,12 +13,36 @@ from unicorn import *
 from unicorn.x86_const import *
 
 class Tool:
-    def __init__(self, emulator):
+    registers = {
+        'ax': [UC_X86_REG_EAX, UC_X86_REG_RAX],
+        'bx': [UC_X86_REG_EBX, UC_X86_REG_RBX],
+        'cx': [UC_X86_REG_ECX, UC_X86_REG_RCX],
+        'dx': [UC_X86_REG_EDX, UC_X86_REG_RDX],
+        'di': [UC_X86_REG_EDI, UC_X86_REG_RDI],
+        'si': [UC_X86_REG_ESI, UC_X86_REG_RSI],
+        'bp': [UC_X86_REG_EBP, UC_X86_REG_RBP],
+        'sp': [UC_X86_REG_ESP, UC_X86_REG_RSP],
+        'ip': [UC_X86_REG_EIP, UC_X86_REG_RIP],
+    }
+    
+    def __init__(self, emulator, arch):
+        self.arch = arch
         self.emulator = emulator
         self.uc = emulator.uc
 
+    def get_by_name(self, name):
+        if self.arch == 'x86':
+            index = 0
+        elif self.arch == 'AMD64':
+            index = 1
+        else:
+            return None
+
+        if name in self.registers:
+            return self.registers[name][index]
+
     def write(self, register_name, value):
-        self.uc.reg_write(self.emulator.get_register_by_name(register_name), value)
+        self.uc.reg_write(self.emulator.register.get_by_name(register_name), value)
 
     def write_register(self, register, value):
         self.uc.reg_write(register, value)

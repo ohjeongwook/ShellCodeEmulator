@@ -64,8 +64,8 @@ class ProcessMemory:
                 
                 logger.debug('\tStack: 0x%.8x ~ 0x%.8x (0x%.8x)' % (self.stack_limit, self.stack_base_address, self.StackSize))
 
-                self.emulator.register.write("esp", address['BaseAddr']+address['RgnSize']-0x1000)
-                self.emulator.register.write("ebp", address['BaseAddr']+address['RgnSize']-0x1000)
+                self.emulator.register.write("sp", address['BaseAddr']+address['RgnSize']-0x1000)
+                self.emulator.register.write("bp", address['BaseAddr']+address['RgnSize']-0x1000)
 
             if self.emulator.debugger:
                 tmp_dmp_filename = 'tmp.dmp'

@@ -36,7 +36,7 @@ class Tool:
         return ret
 
     def get_stack(self, arg_count):
-        esp = self.uc.reg_read(self.emulator.get_register_by_name("esp"))
+        esp = self.uc.reg_read(self.emulator.register.get_by_name("sp"))
         ret = struct.unpack("<"+"L"*(arg_count+1), self.uc.mem_read(esp, 4*(1+arg_count)))    
         return ret
 
@@ -96,7 +96,7 @@ class Tool:
 
     def memory_write_callback(self, uc, access, address, size, value, user_data):
         if access == UC_MEM_WRITE:
-            eip = uc.reg_read(self.emulator.get_register_by_name("eip"))
+            eip = uc.reg_read(self.emulator.register.get_by_name("ip"))
             logger.debug("* %.8x: Memory Write 0x%.8x (Size:%.8u) <-- 0x%.8x" %(eip - self.code_start, address, size, value))
             self.emulator.instruction.dump_context()
 
@@ -110,7 +110,7 @@ class Tool:
                 )
 
     def memory_access_callback(self, uc, access, address, size, value, user_data):
-        eip = uc.reg_read(self.emulator.get_register_by_name("eip"))
+        eip = uc.reg_read(self.emulator.register.get_by_name("ip"))
         if access == UC_MEM_WRITE:
             logger.info("* %.8x: Memory Write 0x%.8x (Size:%.8u) <-- 0x%.8x" %
                             (
@@ -151,7 +151,7 @@ class Tool:
             logger.info("* Memory Fetch Fail: @0x%x (Size:%u)" % (address, size))
 
         self.emulator.instruction.dump_context()
-        print(hex(self.uc.reg_read(self.emulator.get_register_by_name("eip"))))
+        print(hex(self.uc.reg_read(self.emulator.register.get_by_name("ip"))))
         return False
         
     def hook_unmapped_memory_access(self):

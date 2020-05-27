@@ -73,7 +73,7 @@ class Tool:
                 break
 
     def dump_context(self, dump_registers = True, dump_previous_eip = False):
-        self.dump_disassembly(self.uc.reg_read(self.emulator.get_register_by_name("eip")), 10)
+        self.dump_disassembly(self.uc.reg_read(self.emulator.register.get_by_name("ip")), 10)
 
         if dump_registers:
             self.emulator.register.print_registers()

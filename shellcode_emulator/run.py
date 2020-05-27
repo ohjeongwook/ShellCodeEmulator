@@ -41,36 +41,9 @@ class Emulator:
 
         self.instruction = shellcode_emulator.instruction.Tool(self)
         self.memory = shellcode_emulator.memory.Tool(self)
-        self.register = shellcode_emulator.register.Tool(self)
+        self.register = shellcode_emulator.register.Tool(self, arch)
         self.debugger = windbgtool.debugger.DbgEngine()
-        self.debugger.load_dump(dump_filename)
-
-    def get_register_by_name(self, register_name):
-        if register_name == "esp":
-            if self.arch == 'x86':
-                return UC_X86_REG_ESP
-            elif self.arch == 'AMD64':
-                return UC_X86_REG_RSP
-        elif register_name == "ebp":
-            if self.arch == 'x86':
-                return UC_X86_REG_EBP
-            elif self.arch == 'AMD64':
-                return UC_X86_REG_RBP
-        elif register_name == "eip":
-            if self.arch == 'x86':
-                return UC_X86_REG_EIP
-            elif self.arch == 'AMD64':
-                return UC_X86_REG_RIP
-        elif register_name == "eax":
-            if self.arch == 'x86':
-                return UC_X86_REG_EAX
-            elif self.arch == 'AMD64':
-                return UC_X86_REG_RAX
-        elif register_name == "ecx":
-            if self.arch == 'x86':
-                return UC_X86_REG_ECX
-            elif self.arch == 'AMD64':
-                return UC_X86_REG_RCX                
+        self.debugger.load_dump(dump_filename)         
 
     def add_unicorn_hook(self, hook_type, callback, arg = None, start = 0, end = 0):
         self.uc.hook_add(hook_type, callback, arg, start, end)
