@@ -38,27 +38,27 @@ class Hook:
         self.uc.reg_write(self.emulator.register.get_by_name("ax"), return_value)
 
     def get_arguments(self, count):
-        arguments = []
+        argument_values = []
 
         stack_argument_count = count
         if self.arch == 'AMD64':
             reg_argument_count = min(count, len(Hook.amd64_argument_regs))
             stack_argument_count -= reg_argument_count
             for i in range(0, reg_argument_count, 1):
-                arguments.append(self.emulator.uc.reg_read(Hook.amd64_argument_regs[i]))
+                argument_values.append(self.uc.reg_read(Hook.amd64_argument_regs[i]))
 
         if stack_argument_count > 0:
-            arguments += self.emulator.memory.get_stack(stack_argument_count)
+            argument_values += self.emulator.memory.get_stack(stack_argument_count)
 
-        return arguments
+        return argument_values
 
     def log_arguments(self, function_def, prefix = '    '):
         if function_def['arguments'] == None:
             return
 
-        self.emulator.register.print_registers()
         index = 0
         argument_values = self.get_arguments(len(function_def['arguments']))
+
         for argument in function_def['arguments']:
             if 'name' in argument:
                 print(prefix + 'name: ' + argument['name'])
@@ -69,9 +69,9 @@ class Hook:
             if argument['type'] in ('LPCWSTR', 'LPWSTR'):
                 if argument_value != 0:
                     try:
-                        print(prefix + '    '+self.emulator.memory.read_unicode_string(argument_value))
+                        print(prefix + '    '+self.emulator.memory.read_wstring(argument_value))
                     except:
-                        print(prefix + '    tException to read memory: %x' % argument_value)
+                        print(prefix + '    Exception to read memory: %x' % argument_value)
 
             elif argument['type'] in ('LPCSTR', 'LPSTR'):
                 if argument_value != 0:
@@ -79,6 +79,8 @@ class Hook:
                         print(prefix + '    '+self.emulator.memory.read_string(argument_value))
                     except:
                         print(prefix + '    Exception to read memory: %x' % argument_value)
+
+            index += 1
 
     def callback(self, uc, address, size, user_data):
         code = uc.mem_read(address, size)
