@@ -53,6 +53,7 @@ class Emulator:
 
 class ShellcodeEmulator:
     def __init__(self, shellcode_filename, shellcode_bytes = '', dump_filename = '', arch = 'AMD64', exhaustive_loop_dump_frequency = 0x10000):
+        self.arch = arch
         self.shellcode_filename = shellcode_filename
         self.shellcode_bytes = shellcode_bytes
         self.exhaustive_loop_dump_frequency = exhaustive_loop_dump_frequency
@@ -102,7 +103,7 @@ class ShellcodeEmulator:
             self.emulator.add_unicorn_hook(UC_HOOK_CODE, self.instruction_callback, None, self.code_start, self.code_start+1)
 
         self.emulator.memory.hook_unmapped_memory_access()
-        api_hook = shellcode_emulator.api.Hook(self.emulator)
+        api_hook = shellcode_emulator.api.Hook(self.emulator, self.arch)
         api_hook.start()
 
         self.emulator.instruction.set_code_range(self.code_start, self.code_start+self.code_length)

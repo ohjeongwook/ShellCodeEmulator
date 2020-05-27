@@ -16,8 +16,10 @@ import shellcode_emulator.utils
 logger = logging.getLogger(__name__)
 
 class Hook:
-    def __init__(self, emulator):
+    amd64_argument_regs = (UC_X86_REG_RCX, UC_X86_REG_RDX, UC_X86_REG_R8, UC_X86_REG_R9)
+    def __init__(self, emulator, arch):
         self.emulator = emulator
+        self.arch = arch
         self.uc = emulator.uc
         self.trace_target_modules = ['ntdll', 'kernel32', 'kernelbase']
         self.last_code_information = {}
@@ -31,20 +33,34 @@ class Hook:
         uc.reg_write(self.emulator.register.get_by_name("sp"), esp+4*(arg_count+1))        
         uc.reg_write(self.emulator.register.get_by_name("ax"), return_value)
 
-    def callback(self, uc, address, size, user_data):
-        self.emulator.instruction.dump_disassembly(address, size, find_symbol = True)
+    def get_arguments(self, count):
+        arguments = []
 
+        stack_argument_count = count
+        if self.arch == 'AMD64':
+            reg_argument_count = min(count, len(self.amd64_argument_regs))
+            stack_argument_count -= reg_argument_count
+            for i in range(0, reg_argument_count, 1):
+                arguments.append(self.uc.reg_read(self.amd64_argument_regs[i]))
+
+        if stack_argument_count > 0:
+            arguments += self.emulator.memory.get_stack(stack_argument_count)
+
+        return arguments        
+
+    def callback(self, uc, address, size, user_data):
         code = uc.mem_read(address, size)
         try:
             name = self.emulator.debugger.find_symbol(address)
         except:
             name = ''
+            self.emulator.instruction.dump_disassembly(address, size, find_symbol = True)
 
-        print('callback: %s (%x)' % (name, address))
+        sp = self.uc.reg_read(self.emulator.register.get_by_name("sp"))
+        print('%x: %s (%x)' % (sp, name, address))
         if name == 'kernel32!WinExec':
-            rcx = uc.reg_read(UC_X86_REG_RCX)
-            print('rcx: %x' % rcx)
-            command = self.emulator.memory.read_string(rcx)
+            arguments = self.get_arguments(2)
+            command = self.emulator.memory.read_string(arguments[0])
             print('command: %s' % command)
 
         elif name == 'ntdll!LdrLoadDll':
