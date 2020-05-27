@@ -36,7 +36,7 @@ class Tool:
             
         return ret
 
-    def get_stack(self, arg_count, skip_return = False):
+    def get_stack(self, arg_count, skip_return = True):
         esp = self.uc.reg_read(self.emulator.register.get_by_name("sp"))
 
         if self.arch == 'AMD64':
@@ -48,6 +48,8 @@ class Tool:
 
         if skip_return:
             offset = pointer_size
+        else:
+            offset = 0
 
         return struct.unpack("<"+unpack_str*arg_count, self.uc.mem_read(esp + offset, pointer_size*arg_count))
 
