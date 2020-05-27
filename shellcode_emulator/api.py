@@ -36,13 +36,20 @@ class Hook:
 
         code = uc.mem_read(address, size)
         try:
-            name = self.emulator.debugger.find_symbol(instruction.address)
+            name = self.emulator.debugger.find_symbol(address)
         except:
             name = ''
 
-        if name == 'ntdll!LdrLoadDll':
+        print('callback: %s (%x)' % (name, address))
+        if name == 'kernel32!WinExec':
+            rcx = uc.reg_read(UC_X86_REG_RCX)
+            print('rcx: %x' % rcx)
+            command = self.emulator.memory.read_string(rcx)
+            print('command: %s' % command)
+
+        elif name == 'ntdll!LdrLoadDll':
             try:
-                (return_address, path_to_file, flags, module_filename_addr, module_handle_out_ptr) = self.uc.Memory.get_stack(4)
+                (return_address, path_to_file, flags, module_filename_addr, module_handle_out_ptr) = self.emulator.memory.get_stack(4)
                 if self.Debug>0:
                     logger.debug('PathToFile: %.8x Flags: %.8x ModuleFilename: %.8x ModuleHandle: %.8x' % 
                                     (
@@ -53,7 +60,7 @@ class Hook:
                                     )
                                 )
 
-                module_filename = self.uc.Memory.read_unicode_string(uc, module_filename_addr)
+                module_filename = self.emulator.memory.read_unicode_string(uc, module_filename_addr)
                 logger.debug('Module Filename: ' + module_filename)
 
                 module_base = self.emulator.debugger.get_module_base(module_filename)
@@ -68,13 +75,13 @@ class Hook:
                                         module_handle_out_ptr
                                     )
                                 )
-                    self.uc.Memory.write_uint_value(uc, module_handle_out_ptr, module_base)
+                    self.emulator.memory.write_uint_value(uc, module_handle_out_ptr, module_base)
                     self.return_function(uc, return_address, 4, 1)
             except:
                 traceback.print_exc(file = sys.stdout)
 
         elif name == 'kernel32!GetProcAddress':
-            (return_address, module_handle, proc_name_ptr) = self.uc.Memory.get_stack(uc, 2)
+            (return_address, module_handle, proc_name_ptr) = self.emulator.memory.get_stack(uc, 2)
             logger.debug("\tReturnAddress: %.8x, ModuleHandle: %.8x, ProcName: %.8x" % 
                             (
                                 return_address, 
@@ -84,7 +91,7 @@ class Hook:
                         )
             
             module_name = self.emulator.debugger.get_module_name_from_base(module_handle)
-            proc_name = self.uc.Memory.read_string(uc, proc_name_ptr)
+            proc_name = self.emulator.memory.read_string(uc, proc_name_ptr)
             symbol = "%s!%s" % (module_name, proc_name)
             
             logger.debug('\tSymbol: %s' % symbol)
@@ -94,12 +101,12 @@ class Hook:
             self.return_function(uc, return_address, 2, address)
             
         elif name == 'kernel32!LoadLibraryA':
-            (return_address, filename_ptr) = self.uc.Memory.get_stack(uc, 1)
-            filename = self.uc.Memory.read_string(uc, filename_ptr)
+            (return_address, filename_ptr) = self.emulator.memory.get_stack(uc, 1)
+            filename = self.emulator.memory.read_string(uc, filename_ptr)
             logger.debug('\tLoadLibraryA Filename:%s' % filename)
 
         elif name == 'kernel32!VirtualAlloc' or name == 'KERNELBASE!VirtualAlloc':
-            (return_address, lp_address, dw_size, fl_allocation_type, fl_protect) = self.uc.Memory.get_stack(uc, 4)
+            (return_address, lp_address, dw_size, fl_allocation_type, fl_protect) = self.emulator.memory.get_stack(uc, 4)
         
             logger.debug('> ReturnAddress: %.8x, lpAddress: %.8x, dwSize: %.8x, flAllocationType: %.8x, flProtect: %.8x' % 
                             (
@@ -120,7 +127,7 @@ class Hook:
                     try:
                         logger.debug('Allocating at %.8x' % base)
                         dw_size += (4096-dw_size%4096)
-                        self.uc.Memory.map(base, int(dw_size))
+                        self.emulator.memory.map(base, int(dw_size))
                         break
                     except:
                         traceback.print_exc(file = sys.stdout)
@@ -129,7 +136,7 @@ class Hook:
                 self.return_function(uc, return_address, 4, base)
                 
         elif name == 'ntdll!RtlDecompressBuffer':
-            (return_address, compression_format, uncompressed_buffer, uncompressed_buffer_size, compressed_buffer, compressed_buffer_size, final_uncompressed_size) = self.uc.Memory.get_stack(6)
+            (return_address, compression_format, uncompressed_buffer, uncompressed_buffer_size, compressed_buffer, compressed_buffer_size, final_uncompressed_size) = self.emulator.memory.get_stack(6)
             
             logger.debug('> ReturnAddress: %.8x, CompressionFormat: %.8x, UncompressedBuffer: %.8x, UncompressedBufferSize: %.8x, CompressedBuffer: %.8x, CompressedBufferSize: %.8x, FinalUncompressedSize: %.8x' % 
                             (
@@ -153,7 +160,7 @@ class Hook:
             #self.uc.add_unicorn_hook(UC_HOOK_CODE, self.dump_memory_callback, None, return_address, return_address+1)
 
         elif name == 'kernel32!GetFileSize':
-            (return_address, hfile, lp_file_size_high) = self.uc.Memory.get_stack(uc, 2)
+            (return_address, hfile, lp_file_size_high) = self.emulator.memory.get_stack(uc, 2)
             
             logger.debug('> hFile: %.8x, lpFileSizeHigh: %.8x' % 
                             (
