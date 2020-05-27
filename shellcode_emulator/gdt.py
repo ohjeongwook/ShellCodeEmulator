@@ -38,11 +38,11 @@ S_PRIV_0 = 0x0
 class Layout:
     def __init__(self, emulator):
         self.emulator = emulator
-        self.fs_selector = 0xe
-        self.gs_selector = 0xf
-        self.ds_selector = 0x10
-        self.cs_selector = 0x11
-        self.ss_selector = 0x12
+        self.fs_index = 0xe
+        self.gs_index = 0xf
+        self.ds_index = 0x10
+        self.cs_index = 0x11
+        self.ss_index = 0x12
 
     def create_gdt_entry(self, base, limit, access, flags):
         to_ret = limit & 0xffff
@@ -60,30 +60,30 @@ class Layout:
 
     def setup(self, gdt_addr = 0x80043000, gdt_limit = 0x1000, gdt_entry_size = 0x8, 
                 fs_base = None, fs_limit = None, gs_base = None, gs_limit = None, segment_limit = 0xffffffff):
-        self.emulator.memory.map(gdt_addr, gdt_limit)
-        gdt = [self.create_gdt_entry(0,0,0,0) for i in range(0x34)]
+        gdt_entries = [self.create_gdt_entry(0,0,0,0) for i in range(0x34)]
         
         if fs_base != None and fs_limit != None:
-            gdt[self.fs_selector] = self.create_gdt_entry(fs_base, fs_limit , A_PRESENT | A_DATA | A_DATA_WRITABLE | A_PRIV_0 | A_DIR_CON_BIT, F_PROT_32)
+            gdt_entries[self.fs_index] = self.create_gdt_entry(fs_base, fs_limit , A_PRESENT | A_DATA | A_DATA_WRITABLE | A_PRIV_0 | A_DIR_CON_BIT, F_PROT_32)
         else:
-            gdt[self.fs_selector] = self.create_gdt_entry(0, segment_limit, A_PRESENT | A_DATA | A_DATA_WRITABLE | A_PRIV_3 | A_DIR_CON_BIT, F_PROT_32)
+            gdt_entries[self.fs_index] = self.create_gdt_entry(0, segment_limit, A_PRESENT | A_DATA | A_DATA_WRITABLE | A_PRIV_3 | A_DIR_CON_BIT, F_PROT_32)
 
         if gs_base != None and gs_limit != None:
-            gdt[self.gs_selector] = self.create_gdt_entry(gs_base, gs_limit, A_PRESENT | A_DATA | A_DATA_WRITABLE | A_PRIV_3 | A_DIR_CON_BIT, F_PROT_32)
+            gdt_entries[self.gs_index] = self.create_gdt_entry(gs_base, gs_limit, A_PRESENT | A_DATA | A_DATA_WRITABLE | A_PRIV_3 | A_DIR_CON_BIT, F_PROT_32)
         else:
-            gdt[self.gs_selector] = self.create_gdt_entry(0, segment_limit, A_PRESENT | A_DATA | A_DATA_WRITABLE | A_PRIV_3 | A_DIR_CON_BIT, F_PROT_32)
+            gdt_entries[self.gs_index] = self.create_gdt_entry(0, segment_limit, A_PRESENT | A_DATA | A_DATA_WRITABLE | A_PRIV_3 | A_DIR_CON_BIT, F_PROT_32)
 
-        gdt[self.ds_selector] = self.create_gdt_entry(0, segment_limit, A_PRESENT | A_DATA | A_DATA_WRITABLE | A_PRIV_3 | A_DIR_CON_BIT, F_PROT_32)  # Data Segment
-        gdt[self.cs_selector] = self.create_gdt_entry(0, segment_limit, A_PRESENT | A_CODE | A_CODE_READABLE | A_PRIV_3 | A_EXEC | A_DIR_CON_BIT, F_PROT_32)  # Code Segment
-        gdt[self.ss_selector] = self.create_gdt_entry(0, segment_limit, A_PRESENT | A_DATA | A_DATA_WRITABLE | A_PRIV_0 | A_DIR_CON_BIT, F_PROT_32)  # Stack Segment
+        gdt_entries[self.ds_index] = self.create_gdt_entry(0, segment_limit, A_PRESENT | A_DATA | A_DATA_WRITABLE | A_PRIV_3 | A_DIR_CON_BIT, F_PROT_32)
+        gdt_entries[self.cs_index] = self.create_gdt_entry(0, segment_limit, A_PRESENT | A_CODE | A_CODE_READABLE | A_PRIV_3 | A_EXEC | A_DIR_CON_BIT, F_PROT_32)
+        gdt_entries[self.ss_index] = self.create_gdt_entry(0, segment_limit, A_PRESENT | A_DATA | A_DATA_WRITABLE | A_PRIV_0 | A_DIR_CON_BIT, F_PROT_32)
 
-        for idx, value in enumerate(gdt):
+        self.emulator.memory.map(gdt_addr, gdt_limit)
+        for idx, value in enumerate(gdt_entries):
             offset = idx * gdt_entry_size
             self.emulator.memory.write_memory(gdt_addr + offset, value)
         
-        self.emulator.register.write_register(UC_X86_REG_GDTR, (0, gdt_addr, len(gdt) * gdt_entry_size-1, 0x0))
-        self.emulator.register.write_register(UC_X86_REG_FS, self.create_selector(self.fs_selector, S_GDT | S_PRIV_0))
-        self.emulator.register.write_register(UC_X86_REG_GS, self.create_selector(self.gs_selector, S_GDT | S_PRIV_3))
-        self.emulator.register.write_register(UC_X86_REG_DS, self.create_selector(self.ds_selector, S_GDT | S_PRIV_3))
-        self.emulator.register.write_register(UC_X86_REG_CS, self.create_selector(self.cs_selector, S_GDT | S_PRIV_3))
-        self.emulator.register.write_register(UC_X86_REG_SS, self.create_selector(self.ss_selector, S_GDT | S_PRIV_0))
+        self.emulator.register.write_register(UC_X86_REG_GDTR, (0, gdt_addr, len(gdt_entries) * gdt_entry_size-1, 0x0))
+        self.emulator.register.write_register(UC_X86_REG_FS, self.create_selector(self.fs_index, S_GDT | S_PRIV_0))
+        self.emulator.register.write_register(UC_X86_REG_GS, self.create_selector(self.gs_index, S_GDT | S_PRIV_3))
+        self.emulator.register.write_register(UC_X86_REG_DS, self.create_selector(self.ds_index, S_GDT | S_PRIV_3))
+        self.emulator.register.write_register(UC_X86_REG_CS, self.create_selector(self.cs_index, S_GDT | S_PRIV_3))
+        self.emulator.register.write_register(UC_X86_REG_SS, self.create_selector(self.ss_index, S_GDT | S_PRIV_0))
