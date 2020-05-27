@@ -40,7 +40,7 @@ class Emulator:
             self.uc = Uc(UC_ARCH_X86, UC_MODE_64)
 
         self.instruction = shellcode_emulator.instruction.Tool(self)
-        self.memory = shellcode_emulator.memory.Tool(self)
+        self.memory = shellcode_emulator.memory.Tool(self, arch)
         self.register = shellcode_emulator.register.Tool(self, arch)
         self.debugger = windbgtool.debugger.DbgEngine()
         self.debugger.load_dump(dump_filename)         
