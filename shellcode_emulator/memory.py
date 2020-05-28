@@ -55,9 +55,7 @@ class Tool:
             
         return wstring
 
-    def get_stack(self, arg_count, skip_return = True):
-        esp = self.uc.reg_read(self.emulator.register.get_by_name("sp"))
-
+    def get_stack(self, count, skip_return = True):
         if self.arch == 'AMD64':
             pointer_size = 8
             unpack_str = "Q"
@@ -70,7 +68,8 @@ class Tool:
         else:
             offset = 0
 
-        return struct.unpack("<"+unpack_str*arg_count, self.uc.mem_read(esp + offset, pointer_size*arg_count))
+        esp = self.uc.reg_read(self.emulator.register.get_by_name("sp"))
+        return struct.unpack("<"+unpack_str*count, self.uc.mem_read(esp + offset, pointer_size*count))
 
     def read_unicode_string(self, address):
         (length, maximum_length, buffer) = struct.unpack("<HHL", self.uc.mem_read(address, 8))
@@ -129,11 +128,11 @@ class Tool:
     def memory_write_callback(self, uc, access, address, size, value, user_data):
         if access == UC_MEM_WRITE:
             eip = uc.reg_read(self.emulator.register.get_by_name("ip"))
-            logger.debug("* %.8x: Memory Write 0x%.8x (Size:%.8u) <-- 0x%.8x" %(eip - self.code_start, address, size, value))
+            logger.debug("* %.8x: Memory Write 0x%.8x (Size:%.8u) <-- 0x%.8x" %(eip, address, size, value))
             self.emulator.instruction.dump_context()
 
     def hook_memory_write(self, start, end):
-        self.emulator.add_unicorn_hook(
+        self.emulator.add_hook(
                     UC_HOOK_MEM_WRITE, 
                     self.memory_write_callback, 
                     None, 
@@ -143,27 +142,24 @@ class Tool:
 
     def memory_access_callback(self, uc, access, address, size, value, user_data):
         eip = uc.reg_read(self.emulator.register.get_by_name("ip"))
-        if access == UC_MEM_WRITE:
+        if access == UC_MEM_WRITE:       
             logger.info("* %.8x: Memory Write 0x%.8x (Size:%.8u) <-- 0x%.8x" %
                             (
-                                eip-self.code_start, 
+                                eip, 
                                 address, 
                                 size, 
                                 value
                             )
                         )
-
         elif access == UC_MEM_READ:
             bytes = uc.mem_read(address, size)
             
             if size == 4:
                 (value, ) = struct.unpack("<L", bytes)
 
-            logger.info("* %.8x (%.8x + %.8x): Memory Read  0x%.8x (Size:%.8u) --> 0x%.8x" %
+            logger.info("* %.8x: Memory Read  0x%.8x (Size:%.8u) --> 0x%.8x" %
                             (
                                 eip,
-                                self.code_start,
-                                eip-self.code_start, 
                                 address, 
                                 size, 
                                 value
@@ -172,7 +168,10 @@ class Tool:
             self.emulator.instruction.dump_context()
 
     def hook_memory_access(self, start, end):
-        self.emulator.add_unicorn_hook(UC_HOOK_MEM_READ | UC_HOOK_MEM_WRITE, self.memory_access_callback, start, end)                
+        self.emulator.add_hook(UC_HOOK_MEM_READ | UC_HOOK_MEM_WRITE, self.memory_access_callback, start, end)                
+
+    def hook_memory_read(self, start, end):
+        self.emulator.add_hook(UC_HOOK_MEM_READ, self.memory_access_callback, start, end) 
 
     def unmapped_memory_access_callback(self, uc, access, address, size, value, user_data):
         if access == UC_MEM_WRITE_UNMAPPED:
