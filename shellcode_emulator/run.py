@@ -39,17 +39,27 @@ class Emulator:
         elif arch == 'AMD64':
             self.uc = Uc(UC_ARCH_X86, UC_MODE_64)
 
+        self.debugger = windbgtool.debugger.DbgEngine()
+        self.debugger.load_dump(dump_filename)
+
         self.instruction = shellcode_emulator.instruction.Tool(self)
         self.memory = shellcode_emulator.memory.Tool(self, arch)
         self.register = shellcode_emulator.register.Tool(self, arch)
-        self.debugger = windbgtool.debugger.DbgEngine()
-        self.debugger.load_dump(dump_filename)         
+        self.api_hook = shellcode_emulator.api.Hook(self, arch)
 
-    def add_unicorn_hook(self, hook_type, callback, arg = None, start = 0, end = 0):
+    def add_hook(self, hook_type, callback, arg = None, start = 0, end = 0):
         self.uc.hook_add(hook_type, callback, arg, start, end)
 
     def start(self, start, end):
-        self.uc.emu_start(start, end)
+        self.api_hook.add_log_address_range(start, end)
+        self.api_hook.start()
+
+        try:
+            self.uc.emu_start(start, end)
+        except:
+            self.api_hook.save('api.json')
+            traceback.print_exc(file = sys.stdout)
+            self.instruction.dump_context()
 
 class ShellcodeEmulator:
     def __init__(self, shellcode_filename, shellcode_bytes = '', dump_filename = '', arch = 'AMD64', exhaustive_loop_dump_frequency = 0x10000):
@@ -80,7 +90,11 @@ class ShellcodeEmulator:
         self.last_code_address = address
         self.last_code_size = size
 
-    def run(self, trace_self_modification = False, print_first_instructions = False):
+    def end_instruction_callback(self, uc, address, size, user_data):
+        print('end_instruction_callback: %x' % address)
+        self.emulator.instruction.dump_context()
+
+    def run(self, trace_self_modification = False, trace_memory_read = False, print_first_instructions = False):
         process_memory = shellcode_emulator.pe.ProcessMemory(self.emulator)
         process_memory.load_process_memory()
 
@@ -99,19 +113,18 @@ class ShellcodeEmulator:
         if trace_self_modification:
             self.emulator.memory.hook_memory_write(self.code_start, self.code_start+self.code_length)
 
+        if trace_memory_read:
+            self.emulator.memory.hook_memory_read(0, 0xFFFFFFFFFFFFFFFF)
+
         if print_first_instructions:
-            self.emulator.add_unicorn_hook(UC_HOOK_CODE, self.instruction_callback, None, self.code_start, self.code_start+1)
+            self.emulator.add_hook(UC_HOOK_CODE, self.instruction_callback, None, self.code_start, self.code_start + 1)
+
+        code_end = self.code_start + self.code_length
+        self.emulator.add_hook(UC_HOOK_CODE, self.end_instruction_callback, None, code_end - 3, code_end)
 
         self.emulator.memory.hook_unmapped_memory_access()
-        api_hook = shellcode_emulator.api.Hook(self.emulator, self.arch)
-        api_hook.start()
-
-        self.emulator.instruction.set_code_range(self.code_start, self.code_start+self.code_length)
-        try:
-            self.emulator.start(self.code_start, self.code_start+self.code_length)
-        except:
-            traceback.print_exc(file = sys.stdout)
-            self.emulator.instruction.dump_context()
+        self.emulator.instruction.set_code_range(self.code_start, code_end)
+        self.emulator.start(self.code_start, code_end)
 
 if __name__ == '__main__':
     from optparse import OptionParser, Option
@@ -156,4 +169,4 @@ if __name__ == '__main__':
         sys.exit(0)
 
     shell_emu = ShellcodeEmulator(shellcode_filename, shellcode_bytes = shellcode_bytes, arch = options.arch, dump_filename = options.dump_filename)
-    shell_emu.run(trace_self_modification = True, print_first_instructions = True)
+    shell_emu.run(trace_self_modification = True, trace_memory_read = True, print_first_instructions = True)
