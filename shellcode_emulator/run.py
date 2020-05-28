@@ -169,4 +169,4 @@ if __name__ == '__main__':
         sys.exit(0)
 
     shell_emu = ShellcodeEmulator(shellcode_filename, shellcode_bytes = shellcode_bytes, arch = options.arch, dump_filename = options.dump_filename)
-    shell_emu.run(trace_self_modification = True, trace_memory_read = True, print_first_instructions = True)
+    shell_emu.run(trace_self_modification = True, trace_memory_read = False, print_first_instructions = True)
