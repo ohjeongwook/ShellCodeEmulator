@@ -114,6 +114,10 @@ class Hook:
 
         return arguments
 
+    def set_eip(self, address):
+        ip = self.emulator.register.get_by_name("ip")
+        self.uc.reg_write(ip, address)
+        
     def callback(self, uc, address, size, user_data):
         return_address, = self.emulator.memory.get_stack(1, False)
         if not self.check_log_address(return_address):
@@ -146,9 +150,7 @@ class Hook:
         self.api_log.append({'name': name, 'arguments': arguments})
 
         if name == 'kernel32!WinExec':
-            ip = self.emulator.register.get_by_name("ip")
-            print("Writing %x -> %x" % (return_address, ip))
-            uc.reg_write(ip, return_address)
+            self.set_eip(return_address)
 
         if name == 'ntdll!LdrLoadDll':
             try:
