@@ -3,7 +3,7 @@
 
 from unicorn import *
 from unicorn.x86_const import *
-from struct import pack
+import struct
 
 F_GRANULARITY = 0x8
 F_PROT_32 = 0x4
@@ -45,13 +45,13 @@ class Layout:
         self.ss_index = 0x12
 
     def create_gdt_entry(self, base, limit, access, flags):
-        to_ret = limit & 0xffff
-        to_ret |= (base & 0xffffff) << 16
-        to_ret |= (access & 0xff) << 40
-        to_ret |= ((limit >> 16) & 0xf) << 48
-        to_ret |= (flags & 0xff) << 52
-        to_ret |= ((base >> 24) & 0xff) << 56
-        return pack('<Q',to_ret)
+        gdt_entry = limit & 0xffff
+        gdt_entry |= (base & 0xffffff) << 16
+        gdt_entry |= (access & 0xff) << 40
+        gdt_entry |= ((limit >> 16) & 0xf) << 48
+        gdt_entry |= (flags & 0xff) << 52
+        gdt_entry |= ((base >> 24) & 0xff) << 56
+        return struct.pack('<Q',gdt_entry)
 
     def create_selector(self, idx, flags):
         to_ret = flags
